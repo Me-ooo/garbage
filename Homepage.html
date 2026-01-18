@@ -1,0 +1,448 @@
+
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ระบบแจ้งปัญหาขยะในชุมชน</title>
+    <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary-green: #2e5936; /* สีเขียวเข้มของ Header */
+            --secondary-green: #5c9454; /* สีเขียวปุ่ม */
+            --bg-light: #e8f5e9;
+            --accent-yellow: #f0e68c;
+            --text-dark: #333;
+            --status-processing: #fdd835;
+            --status-done: #66bb6a;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Kanit', sans-serif;
+            background-color: var(--bg-light);
+            background-image: linear-gradient(to bottom, #a5d6a7, #e8f5e9); /* จำลองพื้นหลัง */
+            min-height: 100vh;
+        }
+
+        /* --- Header --- */
+        header {
+            background-color: var(--primary-green);
+            color: white;
+            padding: 10px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+
+        .user-profile {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .user-profile img {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            border: 2px solid white;
+        }
+
+        .logout-btn {
+            background-color: #ddd;
+            color: #333;
+            border: none;
+            padding: 5px 15px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .logout-btn:hover {
+            background-color: #ccc;
+        }
+
+        /* --- Main Layout --- */
+        .container {
+            display: flex;
+            max-width: 1200px;
+            margin: 20px auto;
+            gap: 20px;
+            padding: 0 10px;
+        }
+
+        /* --- Sidebar --- */
+        aside {
+            width: 250px;
+            flex-shrink: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .banner-box {
+            background-color: white;
+            border-radius: 15px;
+            overflow: hidden;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        
+        .banner-box img {
+            width: 100%;
+            display: block;
+        }
+
+        .nav-menu {
+            background-color: white;
+            border-radius: 15px;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            height: 100%;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        .menu-btn {
+            background-color: #eee;
+            border: 1px solid #ccc;
+            padding: 12px;
+            border-radius: 25px;
+            cursor: pointer;
+            text-align: center;
+            font-weight: 600;
+            transition: 0.2s;
+        }
+
+        .menu-btn:hover {
+            background-color: #e0e0e0;
+        }
+
+        .admin-btn {
+            background-color: var(--primary-green);
+            color: white;
+            border: none;
+            margin-top: auto; /* ดันไปล่างสุด */
+        }
+        
+        .admin-btn:hover {
+            background-color: #1b3820;
+        }
+
+        /* --- Main Content --- */
+        main {
+            flex-grow: 1;
+            background-color: white;
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            position: relative;
+        }
+
+        /* Search Bar */
+        .search-bar {
+            background-color: var(--secondary-green);
+            padding: 10px;
+            border-radius: 10px;
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .search-input {
+            flex-grow: 1;
+            padding: 8px 15px;
+            border-radius: 5px;
+            border: none;
+            outline: none;
+        }
+
+        .category-select {
+            padding: 8px 15px;
+            border-radius: 20px;
+            border: none;
+            background-color: white;
+            cursor: pointer;
+            font-family: 'Kanit', sans-serif;
+        }
+
+        /* Report List */
+        .report-list {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .report-card {
+            border: 1px solid #ddd;
+            border-radius: 15px;
+            padding: 10px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            transition: transform 0.2s;
+        }
+
+        .report-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .report-img {
+            width: 80px;
+            height: 80px;
+            object-fit: cover;
+            border-radius: 10px;
+            background-color: #eee;
+        }
+
+        .report-info {
+            flex-grow: 1;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 0.85rem;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .status-processing {
+            background-color: var(--status-processing);
+            color: #555;
+        }
+
+        .status-done {
+            background-color: var(--status-done);
+            color: white;
+        }
+
+        .report-title {
+            font-size: 1.1rem;
+            color: #555;
+        }
+
+        .report-meta {
+            text-align: right;
+            font-size: 0.9rem;
+            color: #777;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            min-width: 80px;
+        }
+
+        /* Pagination & FAB */
+        .pagination {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-top: 20px;
+            gap: 10px;
+        }
+        
+        .page-btn {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            border: none;
+            background: none;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        
+        .page-btn.active {
+            background-color: #ddd;
+        }
+
+        .fab {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            width: 60px;
+            height: 60px;
+            background-color: #00c853;
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 40px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+            cursor: pointer;
+            border: none;
+            transition: 0.3s;
+        }
+
+        .fab:hover {
+            transform: scale(1.1);
+        }
+
+        /* Mobile Responsive */
+        @media (max-width: 768px) {
+            .container {
+                flex-direction: column;
+            }
+            aside {
+                width: 100%;
+            }
+            .nav-menu {
+                flex-direction: row;
+                flex-wrap: wrap;
+                justify-content: center;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="user-profile">
+            <img src="https://placehold.co/40x40/orange/white?text=Jo" alt="User Avatar">
+            <span>สวัสดีคุณ โจโจ้</span>
+        </div>
+        <button class="logout-btn" onclick="logout()">
+             สวัสดีคุณ โจโจ้ <span style="background:white; padding:2px 8px; border-radius:10px; margin-left:5px;">ออกจากระบบ</span>
+        </button>
+    </header>
+
+    <div class="container">
+        <aside>
+            <div class="banner-box">
+                <img src="https://placehold.co/250x120/81c784/ffffff?text=Project+Banner" alt="Campaign Banner">
+            </div>
+            
+            <div class="nav-menu">
+                <button class="menu-btn">หน้าหลัก</button>
+                <button class="menu-btn">แจ้งปัญหา</button>
+                <button class="menu-btn">ติดตามสถานะ</button>
+                
+                <button class="menu-btn admin-btn">Admin Dashboard</button>
+            </div>
+        </aside>
+
+        <main>
+             <div style="margin-bottom: 20px; border-radius: 10px; overflow: hidden;">
+                <img src="https://placehold.co/800x150/4caf50/ffffff?text=Community+Environment+Banner" style="width:100%; object-fit: cover;" alt="Environment">
+             </div>
+
+            <div class="search-bar">
+                <input type="text" id="searchInput" class="search-input" placeholder="ค้นหา..." onkeyup="filterReports()">
+                <select id="categorySelect" class="category-select" onchange="filterReports()">
+                    <option value="all">หมวดหมู่ ทั้งหมด</option>
+                    <option value="กำลังแก้ไข">กำลังแก้ไข</option>
+                    <option value="แก้ไขแล้ว">แก้ไขแล้ว</option>
+                </select>
+            </div>
+
+            <div class="report-list" id="reportList">
+                <div class="report-card" data-status="กำลังแก้ไข">
+                    <img src="https://placehold.co/80/555/fff?text=Trash" class="report-img" alt="trash">
+                    <div class="report-info">
+                        <span class="status-badge status-processing">กำลังแก้ไข</span>
+                        <h3 class="report-title">ขยะเน่าเสีย</h3>
+                    </div>
+                    <div class="report-meta">
+                        <span>15:18</span>
+                        <span>10/12/68</span>
+                    </div>
+                </div>
+
+                <div class="report-card" data-status="กำลังแก้ไข">
+                    <img src="https://placehold.co/80/333/fff?text=Danger" class="report-img" alt="trash">
+                    <div class="report-info">
+                        <span class="status-badge status-processing">กำลังแก้ไข</span>
+                        <h3 class="report-title">ขยะอันตราย</h3>
+                    </div>
+                    <div class="report-meta">
+                        <span>15:18</span>
+                        <span>10/12/68</span>
+                    </div>
+                </div>
+
+                <div class="report-card" data-status="กำลังแก้ไข">
+                    <img src="https://placehold.co/80/777/fff?text=Bin" class="report-img" alt="trash">
+                    <div class="report-info">
+                        <span class="status-badge status-processing">กำลังแก้ไข</span>
+                        <h3 class="report-title">ถังขยะไม่เพียงพอ</h3>
+                    </div>
+                    <div class="report-meta">
+                        <span>15:18</span>
+                        <span>10/12/68</span>
+                    </div>
+                </div>
+
+                <div class="report-card" data-status="แก้ไขแล้ว">
+                    <img src="https://placehold.co/80/2e7d32/fff?text=Done" class="report-img" alt="trash">
+                    <div class="report-info">
+                        <span class="status-badge status-done">แก้ไขแล้ว</span>
+                        <h3 class="report-title">เจ้าหน้าที่ไม่มาเก็บขยะ</h3>
+                    </div>
+                    <div class="report-meta">
+                        <span>15:18</span>
+                        <span>10/12/68</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="pagination">
+                <button class="page-btn">&lt;</button>
+                <button class="page-btn active">1</button>
+                <button class="page-btn">2</button>
+                <button class="page-btn">3</button>
+                <button class="page-btn">4</button>
+                <button class="page-btn">5</button>
+                <button class="page-btn">&gt;</button>
+            </div>
+
+            <button class="fab" onclick="alert('เปิดหน้าแจ้งปัญหาใหม่')">+</button>
+        </main>
+    </div>
+
+    <script>
+        // ฟังก์ชัน Logout จำลอง
+        function logout() {
+            const confirmLogout = confirm("คุณต้องการออกจากระบบใช่หรือไม่?");
+            if (confirmLogout) {
+                alert("ออกจากระบบเรียบร้อยแล้ว");
+                // ในการใช้งานจริง: window.location.href = 'login.html';
+            }
+        }
+
+        // ฟังก์ชันค้นหาและกรองข้อมูล
+        function filterReports() {
+            const searchText = document.getElementById('searchInput').value.toLowerCase();
+            const category = document.getElementById('categorySelect').value;
+            const cards = document.querySelectorAll('.report-card');
+
+            cards.forEach(card => {
+                const title = card.querySelector('.report-title').innerText.toLowerCase();
+                const status = card.getAttribute('data-status');
+                
+                // ตรวจสอบเงื่อนไขการค้นหา (Text)
+                const matchText = title.includes(searchText);
+                
+                // ตรวจสอบเงื่อนไขหมวดหมู่ (Category)
+                const matchCategory = (category === 'all') || (status === category);
+
+                if (matchText && matchCategory) {
+                    card.style.display = 'flex';
+                } else {
+                    card.style.display = 'none';
+                }
+            });
+        }
+    </script>
+</body>
+</html>
