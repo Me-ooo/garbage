@@ -55,4 +55,42 @@ router.get('/', async (req, res) => {
     }
 });
 
+// ดึงรายการปัญหา (รองรับ Filter)
+router.get('/', async (req, res) => {
+    const { status, search } = req.query;
+    let sql = 'SELECT r.*, u.username FROM reports r JOIN users u ON r.user_id = u.id WHERE 1=1';
+    const params = [];
+
+    if (status && status !== 'all') {
+        sql += ' AND r.status = ?';
+        params.push(status);
+    }
+    if (search) {
+        sql += ' AND (r.title LIKE ? OR r.location_name LIKE ?)';
+        params.push(`%${search}%`, `%${search}%`);
+    }
+
+    sql += ' ORDER BY created_at DESC';
+
+    try {
+        const [rows] = await db.query(sql, params);
+        res.json(rows);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+router.get('/:id', async (req, res) => {
+    try {
+        const [rows] = await db.query(
+            'SELECT r.*, u.username FROM reports r LEFT JOIN users u ON r.user_id = u.id WHERE r.id = ?',
+             [req.params.id]
+        );
+        if (rows.length === 0) return res.status(404).json({ msg: 'ไม่พบรายงาน'});
+        res.json(rows[0]);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
 module.exports = router;
