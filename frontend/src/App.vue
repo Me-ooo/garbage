@@ -3,6 +3,8 @@ import { ref } from 'vue'
 import Login from './components/Login.vue'
 import Register from './components/Register.vue'
 import Homepage from './components/Homepage.vue'
+import Reportpage from './components/Reportpage.vue'
+import ReportImage from './components/ReportImage.vue'
 import Dashboard from './components/Dashboard.vue'
 
 // สร้างตัวแปรไว้สลับหน้า (ค่าเริ่มต้นคือ login)
@@ -19,6 +21,8 @@ const togglePage = (pageName) => {
     <Login v-if="currentPage === 'login'" @change-page="togglePage" />
     <Register v-else-if="currentPage === 'register'" @change-page="togglePage" />
     <Homepage v-else-if="currentPage === 'homepage'" @change-page="togglePage" />
+    <Reportpage v-else-if="currentPage === 'reportpage'" @change-page="togglePage" />
+    <ReportImage v-else-if="currentPage === 'reportimage'" @change-page="togglePage" />
     <Dashboard v-else-if="currentPage === 'dashboard'" />
   </div>
 </template>

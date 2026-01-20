@@ -26,7 +26,7 @@
             :key="menu.id"
             class="menu-btn"
             :class="{ 'admin-btn': menu.id === 'admin' }"
-            @click="activeMenu = menu.id"
+            @click="handleMenuClick(menu.id)"
           >
             {{ menu.label }}
           </button>
@@ -178,10 +178,23 @@ const handleLogout = () => {
 }
 
 const openNewReport = () => {
-  alert('เปิดหน้าแจ้งปัญหาใหม่')
+  emit('change-page', 'reportpage')
 }
 
-const prevPage = () => {
+const handleMenuClick = (menuId) => {
+  if (menuId === 'home') {
+    // Stay on homepage
+    activeMenu.value = menuId
+  } else if (menuId === 'report') {
+    emit('change-page', 'reportpage')
+  } else if (menuId === 'status') {
+    console.log('Navigate to status page')
+  } else if (menuId === 'admin') {
+    emit('change-page', 'dashboard')
+  }
+}
+
+const prevPage = () {
   if (currentPage.value > 1) currentPage.value--
 }
 
@@ -208,8 +221,12 @@ const nextPage = () => {
   display: flex;
   flex-direction: column;
   height: 100vh;
-  background: linear-gradient(to bottom, #a5d6a7, #e8f5e9);
+  background-image: url('/background.png');
+  background-size: cover;
+  background-position: center;
+  background-attachment: fixed;
   font-family: 'Kanit', sans-serif;
+  overflow: hidden;
 }
 
 /* Header */
@@ -260,6 +277,7 @@ const nextPage = () => {
   gap: 20px;
   padding: 0 10px;
   width: 100%;
+  overflow-y: auto;
 }
 
 /* Sidebar */

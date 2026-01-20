@@ -196,7 +196,10 @@ const getMenuTitle = () => {
   display: flex;
   flex-direction: column;
   height: 100vh;
-  background: linear-gradient(135deg, #a8d5ff 0%, #e0f4ff 50%, #90ee90 100%);
+  background-image: url('/background.png');
+  background-size: cover;
+  background-position: center;
+  background-attachment: fixed;
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
   position: relative;
 }
@@ -290,7 +293,7 @@ const getMenuTitle = () => {
 .dashboard-main {
   display: flex;
   flex: 1;
-  overflow: hidden;
+  overflow-y: auto;
 }
 
 /* Sidebar */
