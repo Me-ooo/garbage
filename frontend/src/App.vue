@@ -17,6 +17,9 @@ const togglePage = (pageName) => {
 </script>
 
 <template>
+  <div class="app-container">
+    <router-view />
+  </div>
   <div class="app-main">
     <Login v-if="currentPage === 'login'" @change-page="togglePage" />
     <Register v-else-if="currentPage === 'register'" @change-page="togglePage" />
@@ -27,8 +30,17 @@ const togglePage = (pageName) => {
   </div>
 </template>
 
+
 <style>
 /* ลบขอบขาวเริ่มต้นของ Browser */
+.app-container {
+  max-width: 500px;
+  margin: 0 auto;
+  min-height: 100vh;
+  flex-direction: white;
+  box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
+  position: relative;
+}
 body, html {
   margin: 0;
   padding: 0;
