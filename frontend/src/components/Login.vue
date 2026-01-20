@@ -6,7 +6,11 @@ const form = ref({ email: '', password: '' })
 
 const handleLogin = () => {
   console.log('Login attempt:', form.value)
-  alert('กำลังเข้าสู่ระบบ...')
+  if (form.value.email && form.value.password) {
+    emit('change-page', 'homepage')
+  } else {
+    alert('กรุณากรอกชื่อผู้ใช้และรหัสผ่าน')
+  }
 }
 </script>
 
