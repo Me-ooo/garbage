@@ -3,7 +3,7 @@ const connection = myaql.createPool({
     host: 'localhost',
     user: 'root',
     password: '123456789',
-    database: 'my_database',
+    database: 'garbage_db',
     waitForConnections: true,
     connectionLimit: 10,
     queueLimit: 0
