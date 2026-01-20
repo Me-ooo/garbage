@@ -8,4 +8,5 @@ const connection = myaql.createPool({
     connectionLimit: 10,
     queueLimit: 0
 });
-module.exports = connection.promise();
+module.exports = connection;
+    

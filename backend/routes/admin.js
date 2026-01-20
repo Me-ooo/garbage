@@ -33,9 +33,7 @@ router.put('/reports/:id/status', async (req, res) => {
         res.status(500).json({ error: err.message });
     }
 });
-        if (rows.length === 0) {
-        return res.status(404).json({ msg: 'ไม่พบรายงาน' });
-        }
+       
 
 // ลบงาน
 router.delete('/reports/:id', async (req, res) => {
