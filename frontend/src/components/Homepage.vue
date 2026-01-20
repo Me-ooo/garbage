@@ -194,7 +194,7 @@ const handleMenuClick = (menuId) => {
   }
 }
 
-const prevPage = () {
+const prevPage = () => {
   if (currentPage.value > 1) currentPage.value--
 }
 
