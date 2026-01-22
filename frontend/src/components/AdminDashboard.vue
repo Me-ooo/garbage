@@ -295,7 +295,7 @@ watch(activeTab, fetchData);
   transform: scale(1.1);
 }
 
-/* Dropdown Status (พระเอกของเรา) */
+/* Dropdown Status */
 .status-control {
   background: #f8f9fa;
   padding: 5px 10px;
