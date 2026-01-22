@@ -237,5 +237,84 @@ const getStatusClass = (status) => {
 onMounted(fetchData);
 watch(activeTab, fetchData);
 </script>
+<style scoped>
+.dashboard-container {
+  min-height: 100vh;
+  background-color: #f8f9fa;
+  padding-bottom: 80px;
+}
 
+/* Header ให้ติดอยู่ด้านบนตลอด */
+.header-section {
+  background: white;
+  padding: 15px 20px;
+  position: sticky;
+  top: 0;
+  z-index: 99;
+  border-bottom-left-radius: 20px;
+  border-bottom-right-radius: 20px;
+}
+
+/* Tabs Styling */
+.nav-pills .nav-link {
+  color: #666;
+  font-weight: 600;
+  transition: all 0.3s ease;
+}
+.nav-pills .nav-link.active {
+  background-color: var(--primary-green, #4CAF50);
+  color: white;
+  box-shadow: 0 4px 6px rgba(76, 175, 80, 0.3);
+}
+
+/* Card Styling */
+.card-report {
+  background: white;
+  border-radius: 15px;
+  overflow: hidden;
+  border: 1px solid #eee;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+.card-report:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 15px rgba(0,0,0,0.1) !important;
+}
+
+/* ปุ่มลบ (ถังขยะ) */
+.btn-delete {
+  background: none;
+  border: none;
+  color: #dc3545;
+  opacity: 0.5;
+  transition: 0.2s;
+}
+.btn-delete:hover {
+  opacity: 1;
+  transform: scale(1.1);
+}
+
+/* Dropdown Status (พระเอกของเรา) */
+.status-control {
+  background: #f8f9fa;
+  padding: 5px 10px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+}
+.status-select {
+  border: none;
+  font-weight: bold;
+  background-color: transparent;
+  cursor: pointer;
+}
+.status-select:focus {
+  box-shadow: none;
+}
+
+/* สีของ Dropdown ตามสถานะ */
+.status-pending { color: #ff9800; }
+.status-progress { color: #2196f3; }
+.status-resolved { color: #4caf50; }
+
+</style>
 
