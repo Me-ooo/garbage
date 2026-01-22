@@ -223,21 +223,23 @@ const confirmDelete = async () => {
   return result.isConfirmed;
 };
 const logout = () => {
-  localStorage.removeItem("token");
-  localStorage.removeItem("user");
-  router.push("/login");
+  localStorage.removeItem('token');
+  localStorage.removeItem('user');
+  router.push('/login');
 };
 
 const getStatusClass = (status) => {
-  if (status === "pending") return "status-pending";
-  if (status === "in_progress") return "status-progress";
-  return "status-resolved";
+  if(status === 'pending') return 'status-pending';
+  if(status === 'in_progress') return 'status-progress';
+  return 'status-resolved';
 };
 
 onMounted(fetchData);
 watch(activeTab, fetchData);
 </script>
 <style scoped>
+/* 3. CSS Styling - แต่งสวย */
+
 .dashboard-container {
   min-height: 100vh;
   background-color: #f8f9fa;
@@ -317,4 +319,3 @@ watch(activeTab, fetchData);
 .status-resolved { color: #4caf50; }
 
 </style>
-
