@@ -4,7 +4,8 @@ const path = require('path');
 const app = exprss();
 
 app.use(core());
-app.use(exprss.json());
+app.use(exprss.json()); /// ใช้ express json
+// เปิดให้เข้าถึงไฟล์รูปภาพในโฟลเดอร์ uploads
 app.use('/uploads', exprss.static(path.join(__dirname, 'uploads')));
 
 //Routes
@@ -15,5 +16,4 @@ app.use('/api/users', require('./routes/users'))
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
-app.use('/api/admin', require('./routes/admin'));
 
