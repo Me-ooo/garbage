@@ -1,28 +1,22 @@
-@ -1,529 +0,0 @@
 <template>
   <div class="homepage-container">
-    <!-- Header -->
     <header class="header">
       <div class="user-profile">
-        <img src="https://placehold.co/40x40/orange/white?text=User" alt="User Avatar">
+        <img src="/admin-profile.png" alt="User Avatar" @error="$event.target.src='https://placehold.co/40x40'" />
         <span>สวัสดีคุณ {{ userName }}</span>
       </div>
-      <button class="logout-btn" @click="handleLogout">
-        ออกจากระบบ
-      </button>
+      <button class="logout-btn" @click="handleLogout">ออกจากระบบ</button>
     </header>
-
-    <!-- Main Layout -->
+    
     <div class="container">
-      <!-- Sidebar -->
       <aside class="sidebar">
         <div class="banner-box">
-          <img src="https://placehold.co/250x120/81c784/ffffff?text=Project+Banner" alt="Campaign Banner">
+          <img src="/admin-sidebar.png" alt="Campaign Banner" @error="$event.target.src='https://placehold.co/250x150'" />
         </div>
-        
+
         <div class="nav-menu">
-          <button 
-            v-for="menu in menuItems" 
+          <button
+            v-for="menu in menuItems"
             :key="menu.id"
             class="menu-btn"
             :class="{ 'admin-btn': menu.id === 'admin' }"
@@ -33,179 +27,211 @@
         </div>
       </aside>
 
-      <!-- Main Content -->
       <main class="main-content">
         <div class="banner-top">
-          <img src="https://placehold.co/800x150/4caf50/ffffff?text=Community+Environment+Banner" alt="Environment Banner">
+          <img src="/admin-banner.png" alt="Environment Banner" @error="$event.target.src='https://placehold.co/800x150'" />
         </div>
 
-        <!-- Search Bar -->
         <div class="search-bar">
-          <input 
-            v-model="searchText" 
-            type="text" 
-            class="search-input" 
-            placeholder="ค้นหา..."
-            @input="filterReports"
-          >
-          <select 
-            v-model="selectedCategory" 
-            class="category-select"
-            @change="filterReports"
-          >
-            <option value="all">หมวดหมู่ ทั้งหมด</option>
-            <option value="กำลังแก้ไข">กำลังแก้ไข</option>
-            <option value="แก้ไขแล้ว">แก้ไขแล้ว</option>
+          <input
+            v-model="searchText"
+            type="text"
+            class="search-input"
+            placeholder="ค้นหาปัญหา..."
+            @input="handleFilterChange" 
+          />
+          <select v-model="selectedCategory" class="category-select" @change="handleFilterChange">
+            <option value="all">สถานะ: ทั้งหมด</option>
+            <option value="pending">⏳ รอดำเนินการ</option>
+            <option value="in_progress">🔧 กำลังแก้ไข</option>
+            <option value="resolved">✅ แก้ไขแล้ว</option>
           </select>
         </div>
 
-        <!-- Report List -->
-        <div class="report-list">
-          <div 
-            v-for="report in filteredReports" 
-            :key="report.id"
-            class="report-card"
-          >
-            <img :src="report.image" :alt="report.title" class="report-img">
+        <div v-if="loading" class="text-center mt-5">
+          <div class="spinner-border text-success" role="status"></div>
+          <p>กำลังโหลดข้อมูล...</p>
+        </div>
+
+        <div v-else class="report-list">
+          <div v-for="report in reports" :key="report.id" class="report-card">
+            <img
+              :src="
+                report.image_url
+                  ? `http://localhost:3000${report.image_url}`
+                  : '/no-image.png'
+              "
+              :alt="report.title"
+              class="report-img"
+              @error="$event.target.src='https://placehold.co/100x100?text=No+Image'"
+            />
+
             <div class="report-info">
-              <span 
-                class="status-badge"
-                :class="{ 'status-processing': report.status === 'กำลังแก้ไข', 'status-done': report.status === 'แก้ไขแล้ว' }"
-              >
-                {{ report.status }}
+              <span class="status-badge" :class="getStatusClass(report.status)">
+                {{ getStatusLabel(report.status) }}
               </span>
+
               <h3 class="report-title">{{ report.title }}</h3>
+              <p class="report-desc">{{ report.description }}</p>
+              <small class="text-muted">โดย: {{ report.username || "ไม่ระบุ" }}</small>
             </div>
+
             <div class="report-meta">
-              <span>{{ report.time }}</span>
-              <span>{{ report.date }}</span>
+              <span>{{ formatTime(report.created_at) }}</span>
+              <span>{{ formatDate(report.created_at) }}</span>
             </div>
           </div>
+
+          <div v-if="reports.length === 0" class="empty-state">
+            <p>ไม่พบรายการแจ้งปัญหา</p>
+          </div>
+
+          <div class="pagination-container" v-if="totalPages > 0">
+            <button 
+              class="page-btn nav-btn" 
+              :disabled="currentPage === 1"
+              @click="changePage(currentPage - 1)"
+            >
+              &lt;
+            </button>
+
+            <button 
+              v-for="page in totalPages" 
+              :key="page"
+              class="page-btn number-btn"
+              :class="{ active: currentPage === page }"
+              @click="changePage(page)"
+            >
+              {{ page }}
+            </button>
+
+            <button 
+              class="page-btn nav-btn" 
+              :disabled="currentPage === totalPages"
+              @click="changePage(currentPage + 1)"
+            >
+              &gt;
+            </button>
+          </div>
+
         </div>
 
-        <!-- Pagination -->
-        <div class="pagination">
-          <button class="page-btn" @click="prevPage">&lt;</button>
-          <button 
-            v-for="page in 5" 
-            :key="page"
-            class="page-btn"
-            :class="{ active: currentPage === page }"
-            @click="currentPage = page"
-          >
-            {{ page }}
-          </button>
-          <button class="page-btn" @click="nextPage">&gt;</button>
-        </div>
-
-        <!-- Floating Action Button -->
-        <button class="fab" @click="openNewReport">+</button>
+        <button class="fab" @click="openNewReport" title="แจ้งปัญหาใหม่">+</button>
       </main>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
-import { useRouter } from 'vue-router'
-const router = useRouter()
+import { ref, onMounted } from "vue";
+import { useRouter } from "vue-router";
+import axios from "axios";
 
-const openNewReport = () => {
-  router.push('/reportpage') 
-}
-const userName = ref('โจโจ้')
-const activeMenu = ref('home')
-const searchText = ref('')
-const selectedCategory = ref('all')
-const currentPage = ref(1)
+const router = useRouter();
+const userName = ref("Guest");
+const reports = ref([]);
+const loading = ref(false);
+const searchText = ref("");
+const selectedCategory = ref("all");
+
+// --- ตัวแปรสำหรับ Pagination ---
+const currentPage = ref(1);
+const totalPages = ref(1);
 
 const menuItems = [
-  { id: 'home', label: 'หน้าหลัก' },
-  { id: 'report', label: 'แจ้งปัญหา' },
-  { id: 'status', label: 'ติดตามสถานะ' },
-  { id: 'admin', label: 'Admin Dashboard' }
-]
+  { id: "home", label: "หน้าหลัก" },
+  { id: "report", label: "แจ้งปัญหา" },
+  { id: "status", label: "ติดตามสถานะ" },
+  { id: "admin", label: "Admin Dashboard" },
+];
 
-const reports = [
-  {
-    id: 1,
-    title: 'ขยะเน่าเสีย',
-    status: 'กำลังแก้ไข',
-    image: 'https://placehold.co/80/555/fff?text=Trash',
-    time: '15:18',
-    date: '10/12/68'
-  },
-  {
-    id: 2,
-    title: 'ขยะอันตราย',
-    status: 'กำลังแก้ไข',
-    image: 'https://placehold.co/80/333/fff?text=Danger',
-    time: '15:18',
-    date: '10/12/68'
-  },
-  {
-    id: 3,
-    title: 'ถังขยะไม่เพียงพอ',
-    status: 'กำลังแก้ไข',
-    image: 'https://placehold.co/80/777/fff?text=Bin',
-    time: '15:18',
-    date: '10/12/68'
-  },
-  {
-    id: 4,
-    title: 'เจ้าหน้าที่ไม่มาเก็บขยะ',
-    status: 'แก้ไขแล้ว',
-    image: 'https://placehold.co/80/2e7d32/fff?text=Done',
-    time: '15:18',
-    date: '10/12/68'
-  },
-]
+onMounted(async () => {
+  const user = JSON.parse(localStorage.getItem("user") || "{}");
+  if (user.fullname || user.username) {
+    userName.value = user.fullname || user.username;
+  }
+  await fetchReports();
+});
 
-const filteredReports = computed(() => {
-  return reports.filter(report => {
-    const matchText = report.title.toLowerCase().includes(searchText.value.toLowerCase())
-    const matchCategory = selectedCategory.value === 'all' || report.status === selectedCategory.value
-    return matchText && matchCategory
+const fetchReports = async (page = 1) => {
+  loading.value = true;
+  try {
+    const token = localStorage.getItem("token");
+
+    const response = await axios.get("http://localhost:3000/api/reports", {
+      headers: { Authorization: `Bearer ${token}` },
+      params: {
+        page: page,
+        limit: 2, // 🔴 ยังคงเป็น 2 เพื่อให้เห็นปุ่ม (ถ้าเสร็จแล้วแก้กลับเป็น 6 นะครับ)
+        search: searchText.value,
+        status: selectedCategory.value,
+      },
+    });
+
+    reports.value = response.data.data;
+    currentPage.value = response.data.currentPage;
+    totalPages.value = response.data.totalPages;
+
+  } catch (err) {
+    console.error("Error fetching reports:", err);
+    if (err.response && err.response.status === 401) {
+      router.push("/login");
+    }
+  } finally {
+    loading.value = false;
+  }
+};
+
+const handleFilterChange = () => {
+  currentPage.value = 1;
+  fetchReports(1);
+};
+
+const changePage = (page) => {
+  if (page >= 1 && page <= totalPages.value) {
+    fetchReports(page);
+  }
+};
+
+// Helper Functions
+const getStatusClass = (status) => {
+  if (status === 'pending') return 'status-pending'
+  if (status === 'in_progress') return 'status-progress'
+  if (status === 'resolved') return 'status-done'
+  return ''
+};
+const getStatusLabel = (status) => {
+  if (status === 'pending') return 'รอดำเนินการ'
+  if (status === 'in_progress') return 'กำลังแก้ไข'
+  if (status === 'resolved') return 'แก้ไขแล้ว'
+  return status
+};
+const formatDate = (dateString) => {
+  if (!dateString) return ''
+  return new Date(dateString).toLocaleDateString('th-TH', {
+    day: '2-digit', month: '2-digit', year: '2-digit'
   })
-})
-
-const filterReports = () => {
-  currentPage.value = 1
-}
-
-const handleLogout = () => {
-  if (confirm('คุณต้องการออกจากระบบใช่หรือไม่?')) {
-    // ล้างข้อมูลการล็อกอิน (ถ้ามี)
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    
-    // สั่งย้ายหน้าไป Login
-    router.push('/login'); 
-  }
-}
-
+};
+const formatTime = (dateString) => {
+  if (!dateString) return ''
+  return new Date(dateString).toLocaleTimeString('th-TH', {
+    hour: '2-digit', minute: '2-digit'
+  })
+};
+const openNewReport = () => {
+  router.push("/reportpage");
+};
 const handleMenuClick = (menuId) => {
-  if (menuId === 'home') {
-    // อยู่หน้าเดิม หรือจะสั่งให้โหลดใหม่ก็ได้
-    router.push('/') 
-  } else if (menuId === 'report') {
-    // ต้องตรงกับ path ใน router/index.js (ของคุณตั้งไว้ว่า /Reportpage)
-    router.push('/Reportpage') 
-  } else if (menuId === 'status') {
-    console.log('Navigate to status page')
-  } else if (menuId === 'admin') {
-    // ไปหน้า Admin Dashboard (path คือ /admin)
-    router.push('/admin') 
+  if (menuId === 'home') fetchReports(1)
+  else if (menuId === 'report') router.push('/reportpage')
+  else if (menuId === 'admin') router.push('/admin')
+};
+const handleLogout = () => {
+  if (confirm('ออกจากระบบ?')) {
+    localStorage.clear()
+    router.push('/login')
   }
-}
-
-const prevPage = () => {
-  if (currentPage.value > 1) currentPage.value--
-}
-
-const nextPage = () => {
-  if (currentPage.value < 5) currentPage.value++
-}
+};
 </script>
 
 <style scoped>
@@ -214,8 +240,9 @@ const nextPage = () => {
   --secondary-green: #5c9454;
   --bg-light: #e8f5e9;
   --text-dark: #333;
-  --status-processing: #fdd835;
-  --status-done: #66bb6a;
+  --status-pending: #fff3cd;
+  --status-progress: #cff4fc;
+  --status-done: #d1e7dd;
 }
 
 * {
@@ -226,11 +253,11 @@ const nextPage = () => {
   display: flex;
   flex-direction: column;
   height: 100vh;
-  background-image: url('/background.png');
+  background-image: url("/background.png");
   background-size: cover;
   background-position: center;
   background-attachment: fixed;
-  font-family: 'Kanit', sans-serif;
+  font-family: "Kanit", sans-serif;
   overflow: hidden;
 }
 
@@ -242,7 +269,7 @@ const nextPage = () => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
 }
 
 .user-profile {
@@ -268,7 +295,6 @@ const nextPage = () => {
   font-weight: 600;
   transition: 0.2s;
 }
-
 .logout-btn:hover {
   background-color: #ccc;
 }
@@ -298,7 +324,7 @@ const nextPage = () => {
   background-color: white;
   border-radius: 15px;
   overflow: hidden;
-  box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
 }
 
 .banner-box img {
@@ -313,7 +339,7 @@ const nextPage = () => {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
 }
 
 .menu-btn {
@@ -325,9 +351,8 @@ const nextPage = () => {
   text-align: center;
   font-weight: 600;
   transition: 0.2s;
-  font-family: 'Kanit', sans-serif;
+  font-family: "Kanit", sans-serif;
 }
-
 .menu-btn:hover {
   background-color: #e0e0e0;
 }
@@ -338,7 +363,6 @@ const nextPage = () => {
   border: none;
   margin-top: auto;
 }
-
 .admin-btn:hover {
   background-color: #1b3820;
 }
@@ -349,7 +373,7 @@ const nextPage = () => {
   background-color: white;
   border-radius: 15px;
   padding: 20px;
-  box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
   position: relative;
   display: flex;
   flex-direction: column;
@@ -357,14 +381,16 @@ const nextPage = () => {
 }
 
 .banner-top {
+  width: 881px;
+  height: 154px;
+  max-width: 100%;
   margin-bottom: 20px;
   border-radius: 10px;
   overflow: hidden;
 }
-
 .banner-top img {
   width: 100%;
-  height: auto;
+  height: 100%;
   object-fit: cover;
 }
 
@@ -384,7 +410,7 @@ const nextPage = () => {
   border-radius: 5px;
   border: none;
   outline: none;
-  font-family: 'Kanit', sans-serif;
+  font-family: "Kanit", sans-serif;
 }
 
 .category-select {
@@ -393,7 +419,7 @@ const nextPage = () => {
   border: none;
   background-color: white;
   cursor: pointer;
-  font-family: 'Kanit', sans-serif;
+  font-family: "Kanit", sans-serif;
 }
 
 /* Report List */
@@ -403,101 +429,142 @@ const nextPage = () => {
   gap: 15px;
   flex: 1;
   overflow-y: auto;
-  padding-right: 10px;
+  padding-right: 5px;
 }
 
 .report-card {
   border: 1px solid #ddd;
   border-radius: 15px;
-  padding: 10px;
+  padding: 15px;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 15px;
   transition: transform 0.2s;
+  background: #fff;
 }
-
 .report-card:hover {
   transform: translateY(-2px);
-  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
 .report-img {
-  width: 80px;
-  height: 80px;
+  width: 100px;
+  height: 100px;
   object-fit: cover;
   border-radius: 10px;
   background-color: #eee;
   flex-shrink: 0;
+  border: 1px solid #eee;
 }
 
 .report-info {
   flex-grow: 1;
 }
 
+.report-title {
+  font-size: 1.2rem;
+  font-weight: bold;
+  color: #333;
+  margin: 0 0 5px 0;
+}
+
+.report-desc {
+  font-size: 0.95rem;
+  color: #666;
+  margin: 0 0 10px 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
 .status-badge {
   display: inline-block;
   padding: 4px 12px;
   border-radius: 12px;
-  font-size: 0.85rem;
+  font-size: 0.8rem;
   font-weight: bold;
   margin-bottom: 5px;
 }
 
-.status-processing {
-  background-color: var(--status-processing);
-  color: #555;
+.status-pending {
+  background-color: #fff3cd;
+  color: #856404;
 }
-
+.status-progress {
+  background-color: #cff4fc;
+  color: #055160;
+}
 .status-done {
-  background-color: var(--status-done);
-  color: white;
-}
-
-.report-title {
-  font-size: 1.1rem;
-  color: #555;
-  margin: 0;
+  background-color: #d1e7dd;
+  color: #0f5132;
 }
 
 .report-meta {
   text-align: right;
-  font-size: 0.9rem;
-  color: #777;
+  font-size: 0.85rem;
+  color: #888;
   display: flex;
   flex-direction: column;
   justify-content: center;
   min-width: 80px;
 }
 
-/* Pagination */
-.pagination {
+/* ✅ แก้ไข CSS Pagination ให้ตัวหนังสือดำตลอด */
+.pagination-container {
   display: flex;
   justify-content: center;
   align-items: center;
-  gap: 10px;
+  gap: 10px; /* เพิ่มช่องว่างระหว่างปุ่มนิดนึง */
   margin-top: 20px;
-  padding-top: 15px;
-  border-top: 1px solid #eee;
+  padding: 10px;
+  padding-bottom: 20px;
 }
 
 .page-btn {
-  width: 35px;
-  height: 35px;
-  border-radius: 50%;
-  border: 1px solid #ddd;
-  background: white;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%; /* กลมดิ๊ก */
+  border: 1px solid #ddd; /* ขอบปกติสีเทาบางๆ */
+  background: white; /* พื้นหลังขาว */
+  color: black; /* 🖤 ตัวหนังสือสีดำตลอด */
   cursor: pointer;
-  font-weight: bold;
-  transition: 0.2s;
+  font-family: "Kanit", sans-serif;
+  font-weight: 600; /* ตัวหนา */
+  font-size: 16px;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
 
-.page-btn:hover {
-  background-color: #e0e0e0;
+.page-btn:hover:not(:disabled) {
+  background-color: #f0f0f0; /* เมาส์ชี้แล้วเป็นสีเทาอ่อน */
+  transform: translateY(-2px);
 }
 
+/* 🔥 สถานะ Active (หน้าที่เลือกอยู่) */
 .page-btn.active {
-  background-color: #ddd;
-  font-weight: bold;
+  background-color: #d1e7dd; /* พื้นหลังสีเขียวอ่อน (เพื่อให้ตัวหนังสือดำยังชัด) */
+  border: 2px solid var(--primary-green); /* ขอบสีเขียวเข้ม หนาๆ */
+  color: black; /* 🖤 ตัวหนังสือยังคงสีดำ */
+  font-weight: 800; /* หนาพิเศษ */
+  transform: scale(1.1); /* ขยายใหญ่นิดนึง */
+  box-shadow: 0 4px 8px rgba(46, 89, 54, 0.2);
+}
+
+.page-btn:disabled {
+  background-color: #f9f9f9;
+  color: #ccc; /* ถ้ากดไม่ได้ให้เป็นสีเทาจางๆ */
+  cursor: not-allowed;
+  box-shadow: none;
+  border: 1px solid #eee;
+}
+
+.nav-btn {
+  font-size: 18px;
+  color: black; /* ลูกศรก็สีดำ */
 }
 
 /* FAB */
@@ -514,12 +581,12 @@ const nextPage = () => {
   justify-content: center;
   align-items: center;
   font-size: 40px;
-  box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
   cursor: pointer;
   border: none;
   transition: 0.3s;
+  z-index: 99;
 }
-
 .fab:hover {
   transform: scale(1.1);
 }
@@ -530,24 +597,33 @@ const nextPage = () => {
     flex-direction: column;
     margin: 10px auto;
   }
-
   .sidebar {
     width: 100%;
   }
-
   .nav-menu {
     flex-direction: row;
     flex-wrap: wrap;
   }
-
   .menu-btn {
     flex: 1;
     min-width: 45%;
   }
-
   .fab {
     bottom: 20px;
     right: 20px;
+  }
+  .report-card {
+    flex-direction: column;
+  }
+  .report-img {
+    width: 100%;
+    height: 150px;
+  }
+  .report-meta {
+    text-align: left;
+    flex-direction: row;
+    gap: 10px;
+    margin-top: 10px;
   }
 }
 </style>

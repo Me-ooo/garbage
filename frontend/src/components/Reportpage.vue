@@ -1,9 +1,8 @@
 <template>
   <div class="reportpage-container">
-    <!-- Header -->
     <header class="header">
       <div class="user-profile">
-        <img src="https://placehold.co/40x40/orange/white?text=User" alt="User Avatar">
+        <img src="/admin-profile.png" alt="User Avatar" @error="$event.target.src='https://placehold.co/40x40'">
         <span>สวัสดีคุณ {{ userName }}</span>
       </div>
       <button class="logout-btn" @click="handleLogout">
@@ -11,19 +10,16 @@
       </button>
     </header>
 
-    <!-- Banner Section -->
     <div class="banners-section">
       <div class="banner-small">
-        <img src="https://placehold.co/180x100/81c784/ffffff?text=Garbage+Project" alt="Small Banner">
+        <img src="/admin-sidebar.png" alt="Small Banner" @error="$event.target.src='https://placehold.co/180x100'">
       </div>
       <div class="banner-large">
-        <img src="https://placehold.co/600x150/4caf50/ffffff?text=Community+Cleanliness+Campaign" alt="Large Banner">
+        <img src="/admin-banner.png" alt="Large Banner" @error="$event.target.src='https://placehold.co/600x150'">
       </div>
     </div>
 
-    <!-- Main Layout -->
     <div class="container">
-      <!-- Sidebar Navigation -->
       <aside class="sidebar">
         <div class="nav-menu">
           <button 
@@ -38,19 +34,16 @@
         </div>
       </aside>
 
-      <!-- Main Content -->
       <main class="main-content">
         <div class="content-title">
           <h2>แจ้งเรื่อง</h2>
-          <button class="upload-image-link" @click="handleNavigateToImage">
+          <button class="upload-image-link" @click="$refs.fileInput.click()">
             <i class="bi bi-cloud-arrow-up"></i>
             อัพโหลดไฟล์ภาพ
           </button>
         </div>
 
-        <!-- Form Container -->
         <div class="form-container">
-          <!-- Image Upload Section -->
           <div class="upload-section">
             <div class="upload-box" @click="$refs.fileInput.click()" :class="{ 'has-image': uploadedImage }">
               <div v-if="uploadedImage" class="uploaded-image">
@@ -58,7 +51,7 @@
                 <button type="button" class="remove-btn" @click.stop="removeImage">✕</button>
               </div>
               <div v-else class="upload-placeholder">
-                <svg class="upload-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                <svg class="upload-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
                   <polyline points="17 8 12 3 7 8"></polyline>
                   <line x1="12" y1="3" x2="12" y2="15"></line>
@@ -76,9 +69,7 @@
             >
           </div>
 
-          <!-- Form Fields -->
           <div class="form-fields">
-            <!-- Category -->
             <div class="form-group">
               <label for="category">ประเภทปัญหา:</label>
               <select v-model="formData.category" id="category" class="form-control">
@@ -90,7 +81,6 @@
               </select>
             </div>
 
-            <!-- Title -->
             <div class="form-group">
               <label for="title">หัวข้อ:</label>
               <input
@@ -102,7 +92,6 @@
               >
             </div>
 
-            <!-- GPS Location -->
             <div class="form-group">
               <label for="map">📍 สถานที่ (ปักหมุด GPS):</label>
               <div id="map" ref="mapContainer" class="map-container"></div>
@@ -112,7 +101,6 @@
               </div>
             </div>
 
-            <!-- Description -->
             <div class="form-group">
               <label for="description">รายละเอียด:</label>
               <textarea
@@ -124,7 +112,6 @@
               ></textarea>
             </div>
 
-            <!-- Contact -->
             <div class="form-group">
               <label for="contact">เบอร์โทรศัพท์:</label>
               <input
@@ -132,23 +119,20 @@
                 type="tel"
                 id="contact"
                 class="form-control"
-                placeholder="กรอกเบอร์โทรศัพท์"
+                maxlength="10"
+                @input="formData.contact = $event.target.value.replace(/[^0-9]/g, '')"
               >
             </div>
           </div>
 
-          <!-- Alert Messages -->
           <div v-if="successMessage" class="alert alert-success mt-3">
-            <i class="bi bi-check-circle"></i>
-            {{ successMessage }}
+            <i class="bi bi-check-circle"></i> {{ successMessage }}
           </div>
 
           <div v-if="errorMessage" class="alert alert-danger mt-3">
-            <i class="bi bi-exclamation-circle"></i>
-            {{ errorMessage }}
+            <i class="bi bi-exclamation-circle"></i> {{ errorMessage }}
           </div>
 
-          <!-- Action Buttons -->
           <div class="button-group">
             <button
               @click="handleSubmit"
@@ -156,10 +140,7 @@
               class="btn btn-submit"
             >
               <span v-if="!isLoading">บันทึกข้อมูล</span>
-              <span v-else>
-                <span class="spinner-border spinner-border-sm me-2"></span>
-                กำลังบันทึก...
-              </span>
+              <span v-else>กำลังบันทึก...</span>
             </button>
             <button
               @click="handleCancel"
@@ -177,14 +158,13 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import axios from 'axios'
 import L from 'leaflet'
+// นำเข้า CSS ของ Leaflet เพื่อให้แผนที่แสดงผลถูกต้อง
+import 'leaflet/dist/leaflet.css'
 
 const router = useRouter()
-
-const openNewReport = () => {
-  router.push('/reportpage')
-}
-const userName = ref('โจโจ้')
+const userName = ref('Guest')
 const fileInput = ref(null)
 const mapContainer = ref(null)
 const map = ref(null)
@@ -205,33 +185,42 @@ const menuItems = [
 const formData = ref({
   category: '',
   title: '',
-  latitude: 13.7563,
+  latitude: 13.7563, // ค่า Default กรุงเทพฯ
   longitude: 100.5018,
   description: '',
   contact: '',
   image: null
 })
 
+// เริ่มต้นทำงาน
 onMounted(() => {
+  // 1. ดึงชื่อ User จาก Login
+  const userStr = localStorage.getItem('user');
+  if (userStr) {
+    const user = JSON.parse(userStr);
+    userName.value = user.fullname || user.username || 'Guest';
+  }
+
+  // 2. โหลดแผนที่
   initializeMap()
 })
 
 const initializeMap = () => {
   if (!mapContainer.value) return
 
-  // Initialize map with Bangkok as default
+  // สร้างแผนที่
   map.value = L.map(mapContainer.value).setView([formData.value.latitude, formData.value.longitude], 13)
 
-  // Add tile layer from OpenStreetMap
+  // ใส่ Layer แผนที่ถนน
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     attribution: '© OpenStreetMap contributors',
     maxZoom: 19
   }).addTo(map.value)
 
-  // Add initial marker
+  // ปักหมุดเริ่มต้น
   addMarker(formData.value.latitude, formData.value.longitude)
 
-  // Add click event to map
+  // ดัก event คลิกแผนที่เพื่อย้ายหมุด
   map.value.on('click', (e) => {
     const { lat, lng } = e.latlng
     addMarker(lat, lng)
@@ -245,39 +234,33 @@ const addMarker = (lat, lng) => {
     map.value.removeLayer(marker.value)
   }
   
-  marker.value = L.marker([lat, lng], {
-    icon: L.icon({
-      iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon.png',
-      iconSize: [25, 41],
-      iconAnchor: [12, 41],
-      popupAnchor: [1, -34]
-    })
-  }).addTo(map.value)
+  // สร้าง Icon หมุด (ใช้ Link CDN หรือ local ก็ได้)
+  const defaultIcon = L.icon({
+    iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+    shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+    iconSize: [25, 41],
+    iconAnchor: [12, 41],
+    popupAnchor: [1, -34]
+  })
 
-  marker.value.bindPopup(`<b>ตำแหน่ง GPS</b><br/>Lat: ${lat.toFixed(6)}<br/>Lng: ${lng.toFixed(6)}`)
+  marker.value = L.marker([lat, lng], { icon: defaultIcon }).addTo(map.value)
+  marker.value.bindPopup(`<b>ตำแหน่งที่เลือก</b><br/>Lat: ${lat.toFixed(6)}<br/>Lng: ${lng.toFixed(6)}`).openPopup()
 }
 
 const handleImageUpload = (event) => {
   const file = event.target.files[0]
   if (file) {
-    // Validate file size (max 5MB)
     if (file.size > 5 * 1024 * 1024) {
-      errorMessage.value = 'ขนาดไฟล์ต้องไม่เกิน 5 MB'
-      setTimeout(() => { errorMessage.value = '' }, 3000)
-      return
+      alert('ขนาดไฟล์ต้องไม่เกิน 5 MB'); return
     }
-
-    // Validate file type
     if (!file.type.startsWith('image/')) {
-      errorMessage.value = 'โปรดเลือกไฟล์รูปภาพ'
-      setTimeout(() => { errorMessage.value = '' }, 3000)
-      return
+      alert('โปรดเลือกไฟล์รูปภาพ'); return
     }
 
     fileName.value = file.name
-    formData.value.image = file
+    formData.value.image = file // เก็บไฟล์จริงลงตัวแปร
 
-    // Preview image
+    // แสดง Preview
     const reader = new FileReader()
     reader.onload = (e) => {
       uploadedImage.value = e.target.result
@@ -291,35 +274,17 @@ const removeImage = () => {
   uploadedImage.value = null
   fileName.value = ''
   formData.value.image = null
-  if (fileInput.value) {
-    fileInput.value.value = ''
-  }
+  if (fileInput.value) fileInput.value.value = ''
 }
 
 const handleSubmit = async () => {
-  // Validate form
-  if (!formData.value.category) {
-    errorMessage.value = 'กรุณาเลือกประเภทปัญหา'
-    return
-  }
-  if (!formData.value.title) {
-    errorMessage.value = 'กรุณากรอกหัวข้อ'
-    return
-  }
-  if (!formData.value.latitude || !formData.value.longitude) {
-    errorMessage.value = 'กรุณาปักหมุด GPS ที่สถานที่'
-    return
-  }
-  if (!formData.value.description) {
-    errorMessage.value = 'กรุณากรอกรายละเอียด'
-    return
-  }
-  if (!formData.value.contact) {
-    errorMessage.value = 'กรุณากรอกเบอร์โทรศัพท์'
+  // Validate
+  if (!formData.value.category || !formData.value.title || !formData.value.contact) {
+    errorMessage.value = 'กรุณากรอกข้อมูลให้ครบถ้วน (ประเภท, หัวข้อ, เบอร์โทร)'
     return
   }
   if (!uploadedImage.value) {
-    errorMessage.value = 'กรุณาอัพโหลดรูปภาพ'
+    errorMessage.value = 'กรุณาอัพโหลดรูปภาพประกอบ'
     return
   }
 
@@ -327,105 +292,67 @@ const handleSubmit = async () => {
   isLoading.value = true
 
   try {
-    // Create FormData for multipart upload
-    const formDataToSend = new FormData()
-    formDataToSend.append('category', formData.value.category)
-    formDataToSend.append('title', formData.value.title)
-    formDataToSend.append('latitude', formData.value.latitude)
-    formDataToSend.append('longitude', formData.value.longitude)
-    formDataToSend.append('description', formData.value.description)
-    formDataToSend.append('contact', formData.value.contact)
-    formDataToSend.append('image', formData.value.image)
+    // 1. เตรียม FormData
+    const data = new FormData()
+    data.append('category', formData.value.category)
+    data.append('title', formData.value.title)
+    data.append('description', formData.value.description)
+    data.append('latitude', formData.value.latitude)
+    data.append('longitude', formData.value.longitude)
+    data.append('contact', formData.value.contact)
+    data.append('image', formData.value.image) // ส่งไฟล์ภาพ
 
-    // Send to backend
-    const response = await fetch('http://localhost:3001/api/reports', {
-      method: 'POST',
-      body: formDataToSend
-    })
-
-    if (!response.ok) {
-      throw new Error('ส่งข้อมูลล้มเหลว')
+    // 2. ดึง User ID จาก LocalStorage (ถ้ามี)
+    const userStr = localStorage.getItem('user')
+    if (userStr) {
+      const user = JSON.parse(userStr)
+      if (user.id) data.append('user_id', user.id)
     }
 
-    // Show success message
-    successMessage.value = '✓ อัพโหลดข้อมูลสำเร็จแล้ว'
-    
-    // Reset form
+    // 3. ยิง API (ใช้ Axios)
+    const token = localStorage.getItem('token')
+    await axios.post('http://localhost:3000/api/reports', data, {
+      headers: {
+        'Authorization': `Bearer ${token}`, // ส่ง Token ไปด้วย
+        'Content-Type': 'multipart/form-data'
+      }
+    })
+
+    successMessage.value = '✓ แจ้งปัญหาเรียบร้อยแล้ว!'
     setTimeout(() => {
-      resetForm()
-      emit('change-page', 'homepage')
-    }, 2000)
+      router.push('/') // กลับหน้าแรก
+    }, 1500)
 
   } catch (error) {
-    errorMessage.value = error.message || 'เกิดข้อผิดพลาดในการส่งข้อมูล'
+    console.error(error)
+    errorMessage.value = error.response?.data?.message || error.message || 'เกิดข้อผิดพลาดในการส่งข้อมูล'
+  } finally {
     isLoading.value = false
   }
 }
 
 const handleCancel = () => {
-  if (confirm('คุณต้องการยกเลิกการแจ้งเรื่องใช่หรือไม่?')) {
-    resetForm()
-    emit('change-page', 'homepage')
-  }
-}
-
-const handleNavigateToImage = () => {
-  emit('change-page', 'reportimage')
-}
-
-const resetForm = () => {
-  formData.value = {
-    category: '',
-    title: '',
-    latitude: 13.7563,
-    longitude: 100.5018,
-    description: '',
-    contact: '',
-    image: null
-  }
-  uploadedImage.value = null
-  fileName.value = ''
-  successMessage.value = ''
-  errorMessage.value = ''
-  if (fileInput.value) {
-    fileInput.value.value = ''
+  if (confirm('ยกเลิกการแจ้งเรื่อง?')) {
+    router.push('/')
   }
 }
 
 const handleMenuClick = (menuId) => {
-  if (menuId === 'home') {
-    emit('change-page', 'homepage')
-  } else if (menuId === 'report') {
-    // Stay on report page
-  } else if (menuId === 'status') {
-    console.log('Navigate to status page')
-  } else if (menuId === 'admin') {
-    emit('change-page', 'dashboard')
-  }
+  if (menuId === 'home') router.push('/')
+  else if (menuId === 'report') router.push('/reportpage')
+  else if (menuId === 'admin') router.push('/admin')
 }
 
 const handleLogout = () => {
-  if (confirm('คุณต้องการออกจากระบบใช่หรือไม่?')) {
-    // ล้างข้อมูลการล็อกอิน (ถ้ามี)
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    
-    // สั่งย้ายหน้าไป Login
-    router.push('/login'); 
+  if (confirm('ยืนยันออกจากระบบ?')) {
+    localStorage.clear()
+    router.push('/login')
   }
 }
 </script>
 
 <style scoped>
-:root {
-  --primary-green: #2e5936;
-  --secondary-green: #5c9454;
-  --bg-light: #e8f5e9;
-  --text-dark: #333;
-  --success-color: #66bb6a;
-  --error-color: #f44336;
-}
-
+/* ลบ :root ออก แล้วใส่สีตรงๆ เพื่อความชัวร์ */
 * {
   box-sizing: border-box;
 }
@@ -438,13 +365,13 @@ const handleLogout = () => {
   background-size: cover;
   background-position: center;
   background-attachment: fixed;
-  font-family: 'Kanit', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-family: 'Kanit', sans-serif;
   overflow: hidden;
 }
 
 /* Header */
 .header {
-  background-color: var(--primary-green);
+  background-color: #2e5936; /* ใส่สีเขียวเข้มตรงๆ */
   color: white;
   padding: 15px 20px;
   display: flex;
@@ -475,51 +402,22 @@ const handleLogout = () => {
   cursor: pointer;
   font-weight: 600;
   transition: 0.2s;
-  font-family: 'Kanit', sans-serif;
 }
+.logout-btn:hover { background-color: #ccc; }
 
-.logout-btn:hover {
-  background-color: #ccc;
-}
-
-/* Banners Section */
+/* Banners */
 .banners-section {
   display: flex;
   gap: 15px;
   padding: 15px 20px;
-  background: transparent;
   align-items: center;
 }
+.banner-small { flex-shrink: 0; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 6px rgba(0,0,0,0.1); }
+.banner-small img { width: 180px; height: 100px; object-fit: cover; display: block; }
+.banner-large { flex: 1; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 6px rgba(0,0,0,0.1); }
+.banner-large img { width: 100%; height: 100px; object-fit: cover; display: block; }
 
-.banner-small {
-  flex-shrink: 0;
-  border-radius: 12px;
-  overflow: hidden;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.1);
-}
-
-.banner-small img {
-  width: 180px;
-  height: 100px;
-  object-fit: cover;
-  display: block;
-}
-
-.banner-large {
-  flex: 1;
-  border-radius: 12px;
-  overflow: hidden;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.1);
-}
-
-.banner-large img {
-  width: 100%;
-  height: 100px;
-  object-fit: cover;
-  display: block;
-}
-
-/* Main Container */
+/* Container */
 .container {
   display: flex;
   flex: 1;
@@ -532,11 +430,7 @@ const handleLogout = () => {
 }
 
 /* Sidebar */
-.sidebar {
-  width: 200px;
-  flex-shrink: 0;
-}
-
+.sidebar { width: 200px; flex-shrink: 0; }
 .nav-menu {
   background-color: white;
   border-radius: 15px;
@@ -546,7 +440,6 @@ const handleLogout = () => {
   gap: 10px;
   box-shadow: 0 4px 6px rgba(0,0,0,0.1);
 }
-
 .menu-btn {
   background-color: #eee;
   border: 1px solid #ccc;
@@ -557,23 +450,9 @@ const handleLogout = () => {
   font-weight: 600;
   transition: 0.2s;
   font-family: 'Kanit', sans-serif;
-  font-size: 14px;
 }
-
-.menu-btn:hover {
-  background-color: #e0e0e0;
-}
-
-.admin-btn {
-  background-color: var(--primary-green);
-  color: white;
-  border: none;
-  margin-top: auto;
-}
-
-.admin-btn:hover {
-  background-color: #1b3820;
-}
+.menu-btn:hover { background-color: #e0e0e0; }
+.admin-btn { background-color: #2e5936; color: white; border: none; margin-top: auto; }
 
 /* Main Content */
 .main-content {
@@ -586,375 +465,94 @@ const handleLogout = () => {
   display: flex;
   flex-direction: column;
 }
-
-.content-title {
-  margin-bottom: 30px;
-  text-align: center;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 15px;
-}
-
-.content-title h2 {
-  color: var(--text-dark);
-  font-size: 28px;
-  font-weight: 700;
-  margin: 0;
-}
-
+.content-title { margin-bottom: 20px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+.content-title h2 { margin: 0; color: #333; }
 .upload-image-link {
-  background-color: var(--secondary-green);
+  background-color: #5c9454; /* สีเขียวอ่อน */
   color: white;
   border: none;
   padding: 10px 20px;
   border-radius: 20px;
   cursor: pointer;
   font-weight: 600;
-  font-family: 'Kanit', sans-serif;
-  font-size: 14px;
   display: flex;
   align-items: center;
   gap: 8px;
-  transition: all 0.3s ease;
-  align-self: center;
 }
 
-.upload-image-link:hover {
-  background-color: #4a8044;
-  transform: translateY(-2px);
-  box-shadow: 0 4px 8px rgba(0,0,0,0.2);
-}
-
-.upload-image-link i {
-  font-size: 16px;
-}
-
-/* Form Container */
-.form-container {
-  display: flex;
-  flex-direction: column;
-  gap: 25px;
-}
-
-/* Upload Section */
-.upload-section {
-  display: flex;
-  justify-content: center;
-}
-
+/* Upload & Form */
+.upload-section { display: flex; justify-content: center; margin-bottom: 20px; }
 .upload-box {
   border: 2px dashed #ccc;
   border-radius: 12px;
-  padding: 40px;
+  padding: 30px;
   text-align: center;
   cursor: pointer;
-  transition: all 0.3s ease;
   width: 100%;
   max-width: 400px;
   background-color: #f9f9f9;
-}
-
-.upload-box:hover {
-  border-color: var(--primary-green);
-  background-color: #f0f8f0;
-}
-
-.upload-box.has-image {
-  border: 2px solid var(--success-color);
-  background-color: #f0f8f0;
-  padding: 0;
-}
-
-.uploaded-image {
-  position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 12px;
-  overflow: hidden;
-  height: 300px;
-  background-color: #f9f9f9;
-}
-
-.uploaded-image img {
-  max-width: 100%;
-  max-height: 100%;
-  object-fit: contain;
-}
-
-.remove-btn {
-  position: absolute;
-  top: 10px;
-  right: 10px;
-  background-color: #f44336;
-  color: white;
-  border: none;
-  border-radius: 50%;
-  width: 35px;
-  height: 35px;
-  cursor: pointer;
-  font-size: 20px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: 0.2s;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-}
-
-.remove-btn:hover {
-  background-color: #d32f2f;
-}
-
-.upload-placeholder {
-  padding: 20px;
-}
-
-.upload-icon {
-  width: 60px;
-  height: 60px;
-  color: var(--primary-green);
-  margin-bottom: 15px;
-}
-
-.upload-placeholder p {
-  font-size: 18px;
-  font-weight: 600;
-  color: var(--text-dark);
-  margin: 10px 0;
-}
-
-.upload-placeholder small {
-  color: #999;
-  font-size: 13px;
-}
-
-/* Form Fields */
-.form-fields {
-  display: flex;
-  flex-direction: column;
-  gap: 15px;
-  background-color: #f9f9f9;
-  padding: 20px;
-  border-radius: 12px;
-}
-
-.form-group {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.form-group label {
-  font-weight: 600;
-  color: var(--text-dark);
-  font-size: 14px;
-}
-
-.form-control {
-  padding: 10px 12px;
-  border: 1px solid #ddd;
-  border-radius: 6px;
-  font-family: 'Kanit', sans-serif;
-  font-size: 14px;
   transition: 0.2s;
 }
+.upload-box:hover { border-color: #2e5936; background-color: #f0f8f0; }
+.upload-box.has-image { padding: 0; border: 2px solid #66bb6a; }
+.uploaded-image { position: relative; height: 250px; display: flex; justify-content: center; align-items: center; overflow: hidden; border-radius: 10px; }
+.uploaded-image img { max-width: 100%; max-height: 100%; }
+.remove-btn { position: absolute; top: 10px; right: 10px; background: red; color: white; border: none; border-radius: 50%; width: 30px; height: 30px; cursor: pointer; }
+.upload-icon { width: 50px; height: 50px; color: #2e5936; margin-bottom: 10px; }
 
-.form-control:focus {
-  outline: none;
-  border-color: var(--primary-green);
-  box-shadow: 0 0 0 3px rgba(46, 89, 54, 0.1);
-}
+.form-fields { display: flex; flex-direction: column; gap: 15px; background: #f9f9f9; padding: 20px; border-radius: 12px; }
+.form-group label { font-weight: bold; font-size: 14px; margin-bottom: 5px; display: block; }
+.form-control { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-family: 'Kanit', sans-serif; }
+.map-container { width: 100%; height: 250px; border-radius: 8px; border: 1px solid #ddd; z-index: 1; }
+.location-info p { margin: 5px 0; font-size: 13px; color: #2e5936; }
 
-textarea.form-control {
-  resize: vertical;
-  min-height: 100px;
-}
-
-/* Map Container */
-.map-container {
-  width: 100%;
-  height: 300px;
-  border: 2px solid #ddd;
-  border-radius: 8px;
-  margin-bottom: 10px;
-  z-index: 1;
-}
-
-.location-info {
-  background-color: #f0f8f0;
-  padding: 12px;
-  border-radius: 8px;
-  border: 1px solid #d4e8d4;
-}
-
-.location-info p {
-  margin: 5px 0;
-  font-size: 13px;
-  color: var(--primary-green);
-  font-weight: 600;
-}
-
-/* Alert Messages */
-.alert {
-  padding: 12px 15px;
-  border-radius: 6px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  font-weight: 500;
-  animation: slideIn 0.3s ease;
-}
-
-.alert-success {
-  background-color: #d4edda;
-  color: #155724;
-  border: 1px solid #c3e6cb;
-}
-
-.alert-danger {
-  background-color: #f8d7da;
-  color: #721c24;
-  border: 1px solid #f5c6cb;
-}
-
-@keyframes slideIn {
-  from {
-    opacity: 0;
-    transform: translateY(-10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-/* Button Group */
-.button-group {
-  display: flex;
-  gap: 15px;
-  justify-content: center;
-  margin-top: 20px;
-}
-
+/* Buttons & Alerts */
+.button-group { display: flex; gap: 10px; justify-content: center; margin-top: 20px; }
 .btn {
-  padding: 12px 40px;
+  padding: 10px 40px;
   border: none;
   border-radius: 25px;
-  font-weight: 600;
   cursor: pointer;
-  transition: all 0.3s ease;
-  font-family: 'Kanit', sans-serif;
-  font-size: 14px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
+  font-weight: bold;
+  font-size: 16px;
+  transition: 0.2s;
 }
 
+/* ✅ แก้ตรงนี้: ใส่สีให้ปุ่ม Submit ชัดเจน */
 .btn-submit {
-  background-color: var(--primary-green);
-  color: rgb(0, 0, 0);
-  flex: 0 1 auto;
-  min-width: 150px;
+  background-color: #2e5936; /* สีเขียว */
+  color: white;
+  border: 2px solid #2e5936;
 }
-
 .btn-submit:hover:not(:disabled) {
   background-color: #1b3820;
-  transform: translateY(-2px);
-  box-shadow: 0 4px 8px rgba(0,0,0,0.2);
 }
-
 .btn-submit:disabled {
-  opacity: 0.7;
+  background-color: #ccc;
+  border-color: #ccc;
   cursor: not-allowed;
 }
 
 .btn-cancel {
-  background-color: #f5f5f5;
+  background-color: white;
   color: #333;
-  border: 1px solid #ddd;
-  min-width: 150px;
+  border: 2px solid #ddd;
 }
-
 .btn-cancel:hover {
-  background-color: #e0e0e0;
+  background-color: #eee;
 }
 
-.spinner-border-sm {
-  width: 1rem;
-  height: 1rem;
-  border-width: 0.15em;
-}
+.alert { padding: 10px; border-radius: 6px; text-align: center; font-weight: bold; }
+.alert-success { background: #d4edda; color: #155724; }
+.alert-danger { background: #f8d7da; color: #721c24; }
 
 /* Responsive */
-@media (max-width: 1024px) {
-  .container {
-    gap: 15px;
-  }
-
-  .sidebar {
-    width: 150px;
-  }
-
-  .menu-btn {
-    padding: 8px;
-    font-size: 12px;
-  }
-
-  .main-content {
-    padding: 20px;
-  }
-}
-
 @media (max-width: 768px) {
-  .banners-section {
-    flex-direction: column;
-    padding: 10px;
-  }
-
-  .banner-small {
-    width: 100%;
-  }
-
-  .banner-small img {
-    width: 100%;
-    height: 80px;
-  }
-
-  .banner-large img {
-    height: 80px;
-  }
-
-  .container {
-    flex-direction: column;
-    padding: 0 10px 10px;
-  }
-
-  .sidebar {
-    width: 100%;
-  }
-
-  .nav-menu {
-    flex-direction: row;
-    flex-wrap: wrap;
-  }
-
-  .menu-btn {
-    flex: 1;
-    min-width: 40%;
-  }
-
-  .upload-box {
-    max-width: 100%;
-  }
-
-  .button-group {
-    flex-direction: column;
-  }
-
-  .btn {
-    width: 100%;
-  }
+  .banners-section { flex-direction: column; }
+  .banner-small, .banner-large { width: 100%; }
+  .container { flex-direction: column; }
+  .sidebar { width: 100%; }
+  .nav-menu { flex-direction: row; flex-wrap: wrap; }
+  .menu-btn { flex: 1; }
 }
 </style>

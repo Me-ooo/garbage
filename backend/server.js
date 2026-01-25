@@ -1,19 +1,37 @@
-const exprss = require('express');
-const core = require('cors');
+const express = require('express');
+const cors = require('cors');
+const bodyParser = require('body-parser');
 const path = require('path');
-const app = exprss();
+const adminRoutes = require('./routes/admin');
 
-app.use(core());
-app.use(exprss.json()); /// ใช้ express json
-// เปิดให้เข้าถึงไฟล์รูปภาพในโฟลเดอร์ uploads
-app.use('/uploads', exprss.static(path.join(__dirname, 'uploads')));
+const app = express();
+const port = 3000;
 
-//Routes
-app.use('/api/auth', require('./routes/auth'));
-app.use('/api/reports', require('./routes/reports'));
-app.use('/api/admin', require('./routes/admin'));
-app.use('/api/users', require('./routes/users'))
+// --- 1. Middleware ---
+app.use(cors());
+app.use(bodyParser.json());
 
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+// ✅ เปิดให้หน้าเว็บเข้าถึงรูปภาพในโฟลเดอร์ uploads ได้
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
+// --- 2. Import Routes (เรียกไฟล์ลูก) ---
+const authRoutes = require('./routes/auth');
+const reportRoutes = require('./routes/reports');
+const userRoutes = require('./routes/users');
+const adminRoutes = require('./routes/admin');
+
+// --- 3. Use Routes (สร้างประตูทางเข้า) ---
+app.use('/api', authRoutes);          // สำหรับ Login / Register
+app.use('/api/reports', reportRoutes); // สำหรับ แจ้งปัญหา / ดูรายการ
+app.use('/api/users', userRoutes);    // สำหรับ จัดการสมาชิก (Admin)
+app.use('/api/admin', adminRoutes);   // สำหรับ จัดการงาน (Admin)
+
+// Test Route (เผื่อเปิดเช็คว่า Server ดับไหม)
+app.get('/', (req, res) => {
+  res.send('Backend Server is running properly!');
+});
+
+// --- 4. Start Server ---
+app.listen(port, () => {
+  console.log(`Backend server running on port ${port}`);
+});

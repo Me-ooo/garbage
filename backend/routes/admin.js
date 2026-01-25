@@ -2,47 +2,53 @@ const express = require('express');
 const router = express.Router();
 const db = require('../config/db');
 
-
-// ดึงรายการ users ทั้งหมด
-router.get('/users', async (req, res) => {
-    try {
-        const [rows] = await db.query('SELECT id, username, email, role, created_at FROM users ORDER BY created_at DESC');
-        res.json(rows);
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
+// ✅ 1. ดึงรายการแจ้งปัญหาทั้งหมด (สำหรับ Admin)
+// ต้อง JOIN ตาราง users เพื่อเอาชื่อคนแจ้ง (fullname)
+router.get('/reports', (req, res) => {
+    const sql = `
+        SELECT reports.*, users.fullname AS username 
+        FROM reports 
+        LEFT JOIN users ON reports.user_id = users.id 
+        ORDER BY reports.created_at DESC
+    `;
+    
+    db.query(sql, (err, results) => {
+        if (err) {
+            console.error(err);
+            return res.status(500).json({ error: 'Database Error' });
+        }
+        res.json(results);
+    });
 });
 
-// ลบผู้ใช้
-router.delete('/users/:id', async (req, res) => {
-    try {
-        const [result] = await db.query('DELETE FROM users WHERE id = ?', [req.params.id]);
-        res.json({ message: 'ลบผู้ใช้สำเร็จ', affectedRows: result.affectedRows });
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    };
-}); 
+// ✅ 2. อัปเดตสถานะงาน (PUT)
+router.put('/reports/:id/status', (req, res) => {
+    const id = req.params.id;
+    const { status } = req.body; // รับค่า status ใหม่
 
-// อัปเดตสถานะงาน
-router.put('/reports/:id/status', async (req, res) => {
-    const { status } = req.body;
-    try {
-        await db.query('UPDATE reports SET status = ? WHERE id = ?', [status, req.params.id]);
-        res.json({ message: 'อัปเดตสถานะงานสำเร็จ' });
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
+    const sql = "UPDATE reports SET status = ? WHERE id = ?";
+
+    db.query(sql, [status, id], (err, result) => {
+        if (err) {
+            console.error(err);
+            return res.status(500).json({ error: 'อัปเดตสถานะไม่สำเร็จ' });
+        }
+        res.json({ message: 'อัปเดตสถานะเรียบร้อย' });
+    });
 });
-       
 
-// ลบงาน
-router.delete('/reports/:id', async (req, res) => {
-    try {
-        const [result] = await db.query('DELETE FROM reports WHERE id = ?', [req.params.id]);
-        res.json({ message: 'ลบงานสำเร็จ', affectedRows: result.affectedRows });
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
+// ✅ 3. ลบรายการแจ้งปัญหา (DELETE)
+router.delete('/reports/:id', (req, res) => {
+    const id = req.params.id;
+    const sql = "DELETE FROM reports WHERE id = ?";
+
+    db.query(sql, [id], (err, result) => {
+        if (err) {
+            console.error(err);
+            return res.status(500).json({ error: 'ลบรายการไม่สำเร็จ' });
+        }
+        res.json({ message: 'ลบรายการเรียบร้อย' });
+    });
 });
 
 module.exports = router;

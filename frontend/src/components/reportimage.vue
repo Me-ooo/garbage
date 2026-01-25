@@ -1,6 +1,5 @@
 <template>
-  <div class="reportimage-container">
-    <!-- Header -->
+  <div class="reportpage-container">
     <header class="header">
       <div class="user-profile">
         <img src="https://placehold.co/40x40/orange/white?text=User" alt="User Avatar">
@@ -11,7 +10,6 @@
       </button>
     </header>
 
-    <!-- Banner Section -->
     <div class="banners-section">
       <div class="banner-small">
         <img src="https://placehold.co/180x100/81c784/ffffff?text=Garbage+Project" alt="Small Banner">
@@ -21,9 +19,7 @@
       </div>
     </div>
 
-    <!-- Main Layout -->
     <div class="container">
-      <!-- Sidebar Navigation -->
       <aside class="sidebar">
         <div class="nav-menu">
           <button 
@@ -38,59 +34,96 @@
         </div>
       </aside>
 
-      <!-- Main Content -->
       <main class="main-content">
         <div class="content-title">
-          <h2>อัพโหลดรูปภาพ</h2>
+          <h2>แจ้งเรื่อง</h2>
+          <button class="upload-image-link" @click="handleNavigateToImage">
+            <i class="bi bi-cloud-arrow-up"></i>
+            อัพโหลดไฟล์ภาพ
+          </button>
         </div>
 
-        <!-- Image Upload Container -->
-        <div class="upload-container">
-          <!-- Large Upload Area -->
-          <div class="upload-area" @click="$refs.fileInput.click()" :class="{ 'has-images': uploadedImages.length > 0 }">
-            <div v-if="uploadedImages.length === 0" class="upload-placeholder">
-              <svg class="upload-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                <polyline points="17 8 12 3 7 8"></polyline>
-                <line x1="12" y1="3" x2="12" y2="15"></line>
-              </svg>
-              <p>ลากรูปภาพมาวางที่นี่หรือกดเพื่อเลือก</p>
-              <small>รองรับไฟล์ PNG, JPG, GIF (สูงสุด 5 MB ต่อไฟล์)</small>
+        <div class="form-container">
+          <div class="upload-section">
+            <div class="upload-box" @click="$refs.fileInput.click()" :class="{ 'has-image': uploadedImage }">
+              <div v-if="uploadedImage" class="uploaded-image">
+                <img :src="uploadedImage" :alt="fileName">
+                <button type="button" class="remove-btn" @click.stop="removeImage">✕</button>
+              </div>
+              <div v-else class="upload-placeholder">
+                <svg class="upload-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                  <polyline points="17 8 12 3 7 8"></polyline>
+                  <line x1="12" y1="3" x2="12" y2="15"></line>
+                </svg>
+                <p>อัพโหลดรูปภาพ</p>
+                <small>กดที่นี่เพื่ออัพโหลดรูป</small>
+              </div>
+            </div>
+            <input
+              ref="fileInput"
+              type="file"
+              accept="image/*"
+              style="display: none"
+              @change="handleImageUpload"
+            >
+          </div>
+
+          <div class="form-fields">
+            <div class="form-group">
+              <label for="category">ประเภทปัญหา:</label>
+              <select v-model="formData.category" id="category" class="form-control">
+                <option value="">-- เลือกประเภทปัญหา --</option>
+                <option value="ถังขยะไม่เพียงพอ">ถังขยะไม่เพียงพอ</option>
+                <option value="เจ้าหน้าที่ไม่มาเก็บขยะ">เจ้าหน้าที่ไม่มาเก็บขยะ</option>
+                <option value="ขยะเน่าเสีย">ขยะเน่าเสีย</option>
+                <option value="ขยะอันตราย">ขยะอันตราย</option>
+              </select>
             </div>
 
-            <!-- Uploaded Images Grid -->
-            <div v-else class="uploaded-images-grid">
-              <div 
-                v-for="(image, index) in uploadedImages" 
-                :key="index"
-                class="uploaded-image-item"
+            <div class="form-group">
+              <label for="title">หัวข้อ:</label>
+              <input
+                v-model="formData.title"
+                type="text"
+                id="title"
+                class="form-control"
+                placeholder="กรอกหัวข้อการแจ้งปัญหา"
               >
-                <img :src="image.preview" :alt="`upload-${index}`">
-                <button type="button" class="remove-btn" @click.stop="removeImage(index)">✕</button>
+            </div>
+
+            <div class="form-group">
+              <label for="map">📍 สถานที่ (ปักหมุด GPS):</label>
+              <div id="map" ref="mapContainer" class="map-container"></div>
+              <div class="location-info">
+                <p>ละติจูด: <strong>{{ formData.latitude }}</strong></p>
+                <p>ลองจิจูด: <strong>{{ formData.longitude }}</strong></p>
               </div>
-              
-              <!-- Add More Button -->
-              <div class="add-more-btn" @click.stop="$refs.fileInput.click()">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                  <line x1="12" y1="5" x2="12" y2="19"></line>
-                  <line x1="5" y1="12" x2="19" y2="12"></line>
-                </svg>
-                <p>เพิ่มรูปเพิ่มเติม</p>
-              </div>
+            </div>
+
+            <div class="form-group">
+              <label for="description">รายละเอียด:</label>
+              <textarea
+                v-model="formData.description"
+                id="description"
+                class="form-control"
+                placeholder="กรอกรายละเอียดการแจ้งปัญหา"
+                rows="5"
+              ></textarea>
+            </div>
+
+            <div class="form-group">
+              <label for="contact">เบอร์โทรศัพท์:</label>
+              <input
+                v-model="formData.contact"
+                type="tel"
+                id="contact"
+                class="form-control"
+                placeholder="กรอกเบอร์โทรศัพท์"
+              >
             </div>
           </div>
 
-          <!-- File Input -->
-          <input
-            ref="fileInput"
-            type="file"
-            accept="image/*"
-            multiple
-            style="display: none"
-            @change="handleImagesUpload"
-          >
-
-          <!-- Alert Messages -->
           <div v-if="successMessage" class="alert alert-success mt-3">
             <i class="bi bi-check-circle"></i>
             {{ successMessage }}
@@ -101,29 +134,23 @@
             {{ errorMessage }}
           </div>
 
-          <!-- Image Info -->
-          <div v-if="uploadedImages.length > 0" class="image-info">
-            <p>จำนวนรูปภาพที่อัพโหลด: <strong>{{ uploadedImages.length }}</strong> รูป</p>
-          </div>
-
-          <!-- Action Buttons -->
           <div class="button-group">
             <button
-              @click="handleSubmitImages"
-              :disabled="isLoading || uploadedImages.length === 0"
+              @click="handleSubmit"
+              :disabled="isLoading"
               class="btn btn-submit"
             >
-              <span v-if="!isLoading">ส่งรูปภาพ</span>
+              <span v-if="!isLoading">บันทึกข้อมูล</span>
               <span v-else>
                 <span class="spinner-border spinner-border-sm me-2"></span>
-                กำลังส่ง...
+                กำลังบันทึก...
               </span>
             </button>
             <button
-              @click="handleBack"
+              @click="handleCancel"
               class="btn btn-cancel"
             >
-              กลับไป
+              ยกเลิก
             </button>
           </div>
         </div>
@@ -133,18 +160,20 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-const router = useRouter()
-// ...
-const openNewReport = () => {
-  router.push('/reportpage') // แบบใหม่ (ต้องตรงกับ path ใน router/index.js)
-}
+import axios from 'axios' // ✅ 1. ใช้ axios แทน fetch
+import L from 'leaflet'
 
+const router = useRouter()
 
 const userName = ref('โจโจ้')
 const fileInput = ref(null)
-const uploadedImages = ref([])
+const mapContainer = ref(null)
+const map = ref(null)
+const marker = ref(null)
+const uploadedImage = ref(null)
+const fileName = ref('')
 const isLoading = ref(false)
 const successMessage = ref('')
 const errorMessage = ref('')
@@ -156,123 +185,191 @@ const menuItems = [
   { id: 'admin', label: 'Admin Dashboard' }
 ]
 
-const handleImagesUpload = (event) => {
-  const files = event.target.files
-  if (files) {
-    for (let file of files) {
-      // Validate file size (max 5MB)
-      if (file.size > 5 * 1024 * 1024) {
-        errorMessage.value = 'ขนาดไฟล์ต้องไม่เกิน 5 MB'
-        setTimeout(() => { errorMessage.value = '' }, 3000)
-        continue
-      }
+const formData = ref({
+  category: '',
+  title: '',
+  latitude: 13.7563,
+  longitude: 100.5018,
+  description: '',
+  contact: '',
+  image: null
+})
 
-      // Validate file type
-      if (!file.type.startsWith('image/')) {
-        errorMessage.value = 'โปรดเลือกไฟล์รูปภาพ'
-        setTimeout(() => { errorMessage.value = '' }, 3000)
-        continue
-      }
+// ดึงชื่อ User จาก LocalStorage (ถ้ามี)
+onMounted(() => {
+  const user = JSON.parse(localStorage.getItem('user') || '{}');
+  if (user.fullname || user.name) {
+    userName.value = user.fullname || user.name;
+  }
+  initializeMap()
+})
 
-      // Add image
-      const reader = new FileReader()
-      reader.onload = (e) => {
-        uploadedImages.value.push({
-          name: file.name,
-          file: file,
-          preview: e.target.result
-        })
-      }
-      reader.readAsDataURL(file)
+const initializeMap = () => {
+  if (!mapContainer.value) return
+
+  map.value = L.map(mapContainer.value).setView([formData.value.latitude, formData.value.longitude], 13)
+
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© OpenStreetMap contributors',
+    maxZoom: 19
+  }).addTo(map.value)
+
+  addMarker(formData.value.latitude, formData.value.longitude)
+
+  map.value.on('click', (e) => {
+    const { lat, lng } = e.latlng
+    addMarker(lat, lng)
+    formData.value.latitude = lat.toFixed(6)
+    formData.value.longitude = lng.toFixed(6)
+  })
+}
+
+const addMarker = (lat, lng) => {
+  if (marker.value) {
+    map.value.removeLayer(marker.value)
+  }
+  
+  marker.value = L.marker([lat, lng], {
+    icon: L.icon({
+      iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon.png',
+      iconSize: [25, 41],
+      iconAnchor: [12, 41],
+      popupAnchor: [1, -34]
+    })
+  }).addTo(map.value)
+
+  marker.value.bindPopup(`<b>ตำแหน่ง GPS</b><br/>Lat: ${lat.toFixed(6)}<br/>Lng: ${lng.toFixed(6)}`)
+}
+
+const handleImageUpload = (event) => {
+  const file = event.target.files[0]
+  if (file) {
+    if (file.size > 5 * 1024 * 1024) {
+      errorMessage.value = 'ขนาดไฟล์ต้องไม่เกิน 5 MB'
+      setTimeout(() => { errorMessage.value = '' }, 3000)
+      return
     }
 
+    if (!file.type.startsWith('image/')) {
+      errorMessage.value = 'โปรดเลือกไฟล์รูปภาพ'
+      setTimeout(() => { errorMessage.value = '' }, 3000)
+      return
+    }
+
+    fileName.value = file.name
+    formData.value.image = file
+
+    const reader = new FileReader()
+    reader.onload = (e) => {
+      uploadedImage.value = e.target.result
+    }
+    reader.readAsDataURL(file)
     errorMessage.value = ''
-    successMessage.value = `เพิ่มรูปภาพ ${files.length} รูป`
-    setTimeout(() => { successMessage.value = '' }, 2000)
   }
 }
 
-const removeImage = (index) => {
-  uploadedImages.value.splice(index, 1)
+const removeImage = () => {
+  uploadedImage.value = null
+  fileName.value = ''
+  formData.value.image = null
+  if (fileInput.value) {
+    fileInput.value.value = ''
+  }
 }
 
-const handleSubmitImages = async () => {
-  if (uploadedImages.value.length === 0) {
-    errorMessage.value = 'กรุณาเลือกรูปภาพอย่างน้อย 1 รูป'
-    return
-  }
+const handleSubmit = async () => {
+  // Validation
+  if (!formData.value.category) return errorMessage.value = 'กรุณาเลือกประเภทปัญหา'
+  if (!formData.value.title) return errorMessage.value = 'กรุณากรอกหัวข้อ'
+  if (!formData.value.description) return errorMessage.value = 'กรุณากรอกรายละเอียด'
+  if (!formData.value.contact) return errorMessage.value = 'กรุณากรอกเบอร์โทรศัพท์'
+  if (!uploadedImage.value) return errorMessage.value = 'กรุณาอัพโหลดรูปภาพ'
 
+  errorMessage.value = ''
   isLoading.value = true
 
   try {
-    // Create FormData for multipart upload
-    const formData = new FormData()
-    
-    uploadedImages.value.forEach((image, index) => {
-      formData.append(`images`, image.file)
+    // ✅ 2. เตรียมข้อมูล FormData
+    const formDataToSend = new FormData()
+    formDataToSend.append('category', formData.value.category)
+    formDataToSend.append('title', formData.value.title)
+    formDataToSend.append('latitude', formData.value.latitude)
+    formDataToSend.append('longitude', formData.value.longitude)
+    formDataToSend.append('description', formData.value.description)
+    formDataToSend.append('contact', formData.value.contact)
+    formDataToSend.append('image', formData.value.image)
+
+    // ✅ 3. ดึง Token
+    const token = localStorage.getItem('token')
+
+    // ✅ 4. ส่งด้วย axios พร้อม Token
+    await axios.post('http://localhost:3000/api/reports', formDataToSend, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+        'Authorization': `Bearer ${token}`
+      }
     })
 
-    // Send to backend
-    const response = await fetch('http://localhost:3001/api/report-images', {
-      method: 'POST',
-      body: formData
-    })
-
-    if (!response.ok) {
-      throw new Error('ส่งรูปภาพล้มเหลว')
-    }
-
-    // Show success message
-    successMessage.value = '✓ ส่งรูปภาพสำเร็จแล้ว'
+    successMessage.value = '✓ อัพโหลดข้อมูลสำเร็จแล้ว'
     
-    // Reset and go back
     setTimeout(() => {
-      uploadedImages.value = []
-      emit('change-page', 'reportpage')
+      resetForm()
+      router.push('/') // กลับหน้า Home
     }, 2000)
 
   } catch (error) {
-    errorMessage.value = error.message || 'เกิดข้อผิดพลาดในการส่งรูปภาพ'
+    console.error(error)
+    errorMessage.value = error.response?.data?.message || 'เกิดข้อผิดพลาดในการส่งข้อมูล'
+  } finally {
     isLoading.value = false
   }
 }
 
-const handleBack = () => {
-  if (uploadedImages.value.length > 0) {
-    if (confirm('คุณมีรูปภาพที่ยังไม่ได้ส่ง คุณต้องการกลับใช่หรือไม่?')) {
-      uploadedImages.value = []
-      emit('change-page', 'reportpage')
-    }
-  } else {
-    emit('change-page', 'reportpage')
+const handleCancel = () => {
+  if (confirm('คุณต้องการยกเลิกการแจ้งเรื่องใช่หรือไม่?')) {
+    resetForm()
+    router.push('/')
   }
 }
 
+const handleNavigateToImage = () => {
+  router.push('/reportimage')
+}
+
+const resetForm = () => {
+  formData.value = {
+    category: '', title: '', latitude: 13.7563, longitude: 100.5018,
+    description: '', contact: '', image: null
+  }
+  uploadedImage.value = null
+  fileName.value = ''
+  if (fileInput.value) fileInput.value.value = ''
+}
+
+// ✅ 5. ใช้ router.push แทน emit
 const handleMenuClick = (menuId) => {
   if (menuId === 'home') {
-    emit('change-page', 'homepage')
+    router.push('/')
   } else if (menuId === 'report') {
-    emit('change-page', 'reportpage')
+    // อยู่หน้าเดิม
   } else if (menuId === 'status') {
     console.log('Navigate to status page')
   } else if (menuId === 'admin') {
-    emit('change-page', 'dashboard')
+    router.push('/admin')
   }
 }
 
 const handleLogout = () => {
   if (confirm('คุณต้องการออกจากระบบใช่หรือไม่?')) {
-    // ล้างข้อมูลการล็อกอิน (ถ้ามี)
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    
-    // สั่งย้ายหน้าไป Login
-    router.push('/login'); 
+    localStorage.removeItem('token')
+    localStorage.removeItem('user')
+    router.push('/login') 
   }
 }
 </script>
 
 <style scoped>
+/* ใช้ Style เดิมของคุณได้เลยครับ */
 :root {
   --primary-green: #2e5936;
   --secondary-green: #5c9454;
@@ -286,7 +383,7 @@ const handleLogout = () => {
   box-sizing: border-box;
 }
 
-.reportimage-container {
+.reportpage-container {
   display: flex;
   flex-direction: column;
   height: 100vh;
@@ -446,6 +543,10 @@ const handleLogout = () => {
 .content-title {
   margin-bottom: 30px;
   text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 15px;
 }
 
 .content-title h2 {
@@ -455,107 +556,98 @@ const handleLogout = () => {
   margin: 0;
 }
 
-/* Upload Container */
-.upload-container {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-}
-
-.upload-area {
-  border: 3px dashed #ccc;
-  border-radius: 12px;
-  padding: 60px 40px;
-  text-align: center;
+.upload-image-link {
+  background-color: var(--secondary-green);
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 20px;
   cursor: pointer;
-  transition: all 0.3s ease;
-  background-color: #f9f9f9;
-  min-height: 300px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-direction: column;
-}
-
-.upload-area:hover {
-  border-color: var(--primary-green);
-  background-color: #f0f8f0;
-}
-
-.upload-area.has-images {
-  border-color: var(--success-color);
-  background-color: #f0f8f0;
-  padding: 20px;
-  min-height: auto;
-}
-
-.upload-placeholder {
-  padding: 20px;
-}
-
-.upload-icon {
-  width: 80px;
-  height: 80px;
-  color: var(--primary-green);
-  margin-bottom: 20px;
-}
-
-.upload-placeholder p {
-  font-size: 18px;
   font-weight: 600;
-  color: var(--text-dark);
-  margin: 15px 0;
-}
-
-.upload-placeholder small {
-  color: #999;
-  font-size: 13px;
-}
-
-/* Uploaded Images Grid */
-.uploaded-images-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-  gap: 15px;
-  width: 100%;
-}
-
-.uploaded-image-item {
-  position: relative;
-  border-radius: 8px;
-  overflow: hidden;
-  background-color: #eee;
-  aspect-ratio: 1;
+  font-family: 'Kanit', sans-serif;
+  font-size: 14px;
   display: flex;
   align-items: center;
-  justify-content: center;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-  transition: 0.2s;
+  gap: 8px;
+  transition: all 0.3s ease;
+  align-self: center;
 }
 
-.uploaded-image-item:hover {
+.upload-image-link:hover {
+  background-color: #4a8044;
   transform: translateY(-2px);
   box-shadow: 0 4px 8px rgba(0,0,0,0.2);
 }
 
-.uploaded-image-item img {
+.upload-image-link i {
+  font-size: 16px;
+}
+
+/* Form Container */
+.form-container {
+  display: flex;
+  flex-direction: column;
+  gap: 25px;
+}
+
+/* Upload Section */
+.upload-section {
+  display: flex;
+  justify-content: center;
+}
+
+.upload-box {
+  border: 2px dashed #ccc;
+  border-radius: 12px;
+  padding: 40px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
   width: 100%;
-  height: 100%;
-  object-fit: cover;
+  max-width: 400px;
+  background-color: #f9f9f9;
+}
+
+.upload-box:hover {
+  border-color: var(--primary-green);
+  background-color: #f0f8f0;
+}
+
+.upload-box.has-image {
+  border: 2px solid var(--success-color);
+  background-color: #f0f8f0;
+  padding: 0;
+}
+
+.uploaded-image {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  overflow: hidden;
+  height: 300px;
+  background-color: #f9f9f9;
+}
+
+.uploaded-image img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
 }
 
 .remove-btn {
   position: absolute;
-  top: 5px;
-  right: 5px;
+  top: 10px;
+  right: 10px;
   background-color: #f44336;
   color: white;
   border: none;
   border-radius: 50%;
-  width: 30px;
-  height: 30px;
+  width: 35px;
+  height: 35px;
   cursor: pointer;
-  font-size: 18px;
+  font-size: 20px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -567,35 +659,93 @@ const handleLogout = () => {
   background-color: #d32f2f;
 }
 
-.add-more-btn {
-  border: 2px dashed #ccc;
-  border-radius: 8px;
-  aspect-ratio: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-direction: column;
-  cursor: pointer;
-  transition: all 0.3s ease;
+.upload-placeholder {
+  padding: 20px;
+}
+
+.upload-icon {
+  width: 60px;
+  height: 60px;
   color: var(--primary-green);
+  margin-bottom: 15px;
 }
 
-.add-more-btn:hover {
-  border-color: var(--primary-green);
-  background-color: #f0f8f0;
-}
-
-.add-more-btn svg {
-  width: 40px;
-  height: 40px;
-  margin-bottom: 8px;
-  stroke-width: 2;
-}
-
-.add-more-btn p {
-  font-size: 12px;
+.upload-placeholder p {
+  font-size: 18px;
   font-weight: 600;
-  margin: 0;
+  color: var(--text-dark);
+  margin: 10px 0;
+}
+
+.upload-placeholder small {
+  color: #999;
+  font-size: 13px;
+}
+
+/* Form Fields */
+.form-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  background-color: #f9f9f9;
+  padding: 20px;
+  border-radius: 12px;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.form-group label {
+  font-weight: 600;
+  color: var(--text-dark);
+  font-size: 14px;
+}
+
+.form-control {
+  padding: 10px 12px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-family: 'Kanit', sans-serif;
+  font-size: 14px;
+  transition: 0.2s;
+}
+
+.form-control:focus {
+  outline: none;
+  border-color: var(--primary-green);
+  box-shadow: 0 0 0 3px rgba(46, 89, 54, 0.1);
+}
+
+textarea.form-control {
+  resize: vertical;
+  min-height: 100px;
+}
+
+/* Map Container */
+.map-container {
+  width: 100%;
+  height: 300px;
+  border: 2px solid #ddd;
+  border-radius: 8px;
+  margin-bottom: 10px;
+  z-index: 1;
+}
+
+.location-info {
+  background-color: #f0f8f0;
+  padding: 12px;
+  border-radius: 8px;
+  border: 1px solid #d4e8d4;
+}
+
+.location-info p {
+  margin: 5px 0;
+  font-size: 13px;
+  color: var(--primary-green);
+  font-weight: 600;
 }
 
 /* Alert Messages */
@@ -632,16 +782,6 @@ const handleLogout = () => {
   }
 }
 
-/* Image Info */
-.image-info {
-  background-color: #f0f8f0;
-  padding: 15px;
-  border-radius: 8px;
-  text-align: center;
-  color: var(--primary-green);
-  font-weight: 600;
-}
-
 /* Button Group */
 .button-group {
   display: flex;
@@ -667,7 +807,7 @@ const handleLogout = () => {
 
 .btn-submit {
   background-color: var(--primary-green);
-  color: white;
+  color: rgb(0, 0, 0);
   flex: 0 1 auto;
   min-width: 150px;
 }
@@ -718,10 +858,6 @@ const handleLogout = () => {
   .main-content {
     padding: 20px;
   }
-
-  .uploaded-images-grid {
-    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
-  }
 }
 
 @media (max-width: 768px) {
@@ -762,13 +898,8 @@ const handleLogout = () => {
     min-width: 40%;
   }
 
-  .upload-area {
-    padding: 40px 20px;
-    min-height: 200px;
-  }
-
-  .uploaded-images-grid {
-    grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+  .upload-box {
+    max-width: 100%;
   }
 
   .button-group {

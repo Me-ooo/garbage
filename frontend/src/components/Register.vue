@@ -1,86 +1,100 @@
 <script setup>
-import { ref } from 'vue'
+import { ref } from "vue";
+import axios from "axios";
+import { useRouter } from "vue-router"; 
 
-import axios from 'axios'
+const router = useRouter();
 
-// กำหนด emit เพื่อส่งคำสั่งสลับหน้ากลับไปที่ App.vue
-import { useRouter } from 'vue-router' // 1. import
-const router = useRouter()
-const handleLogin = () => {
-  // ... ล็อกอินสำเร็จ ...
-  router.push('/') // 3. สั่งเปลี่ยนหน้าไปที่ Home (path '/')
-}
-
-const reg = ref({ 
-  fullname: '', 
-  phone: '', 
-  email: '', 
-  password: '', 
-  confirmPassword: '', 
-  accept: false 
-})
+// ข้อมูลสำหรับสมัครสมาชิก
+const reg = ref({
+  fullname: "",
+  phone: "",
+  email: "",
+  password: "",
+  confirmPassword: "",
+  accept: false,
+});
 
 const handleRegister = async () => {
+  // 1. ตรวจสอบความถูกต้อง
   if (reg.value.password !== reg.value.confirmPassword) {
-    return alert('รหัสผ่านไม่ตรงกัน')
+    return alert("รหัสผ่านไม่ตรงกัน");
   }
   if (!reg.value.accept) {
-    return alert('กรุณายอมรับเงื่อนไข')
+    return alert("กรุณายอมรับเงื่อนไข");
   }
 
   try {
-    await axios.post('http://localhost:3000/api/register', reg.value)
-    alert('สมัครสมาชิกสำเร็จ!')
-    emit('change-page', 'login') 
+    // 2. ส่งข้อมูลไป Backend
+    await axios.post("http://localhost:3000/api/register", {
+      fullname: reg.value.fullname,
+      phone: reg.value.phone,
+      email: reg.value.email,
+      password: reg.value.password
+    });
+
+    // 3. ถ้าสำเร็จ ให้แจ้งเตือนและเด้งไปหน้า Login
+    alert("สมัครสมาชิกสำเร็จ! กรุณาเข้าสู่ระบบ");
+    router.push("/login");
+
   } catch (err) {
-    console.error(err)
-    alert('บันทึกข้อมูลสำเร็จ (จำลองการทำงาน)')
-    emit('change-page', 'login')
+    console.error(err);
+    // แสดง Error ที่ส่งมาจาก Backend (ถ้ามี) หรือข้อความ Default
+    const msg = err.response?.data?.message || "เกิดข้อผิดพลาดในการสมัครสมาชิก";
+    alert(msg);
   }
-}
+};
 </script>
 
 <template>
   <div class="register-page">
     <h1 class="page-title">สมัครสมาชิก</h1>
-    
+
     <div class="register-card">
       <div class="form-container">
         <div class="input-wrapper">
           <span class="icon">👤</span>
-          <input v-model="reg.fullname" type="text" placeholder="ชื่อ-นามสกุล">
+          <input v-model="reg.fullname" type="text" placeholder="ชื่อ-นามสกุล" />
         </div>
-        
+
         <div class="input-wrapper">
           <span class="icon">📞</span>
-          <input v-model="reg.phone" type="text" placeholder="เบอร์โทรศัพท์">
+          <input
+            v-model="reg.phone"
+            type="tel"
+            placeholder="เบอร์โทรศัพท์"
+            maxlength="10"
+            @input="reg.phone = $event.target.value.replace(/\D/g, '')"
+          />
         </div>
-        
+
         <div class="input-wrapper">
           <span class="icon">📧</span>
-          <input v-model="reg.email" type="email" placeholder="อีเมล">
+          <input v-model="reg.email" type="email" placeholder="อีเมล" />
         </div>
-        
+
         <div class="input-wrapper">
           <span class="icon">🔒</span>
-          <input v-model="reg.password" type="password" placeholder="รหัสผ่าน">
+          <input v-model="reg.password" type="password" placeholder="รหัสผ่าน" />
         </div>
-        
+
         <div class="input-wrapper">
           <span class="icon">🔒</span>
-          <input v-model="reg.confirmPassword" type="password" placeholder="ยืนยันรหัสผ่าน">
+          <input
+            v-model="reg.confirmPassword"
+            type="password"
+            placeholder="ยืนยันรหัสผ่าน"
+          />
         </div>
 
         <div class="checkbox-group">
-          <input type="checkbox" v-model="reg.accept" id="accept-terms">
+          <input type="checkbox" v-model="reg.accept" id="accept-terms" />
           <label for="accept-terms">ยอมรับข้อกำหนดและเงื่อนไข</label>
         </div>
 
-        <button @click="handleRegister" class="btn-register">
-          ยืนยันการสมัคร
-        </button>
+        <button @click="handleRegister" class="btn-register">ยืนยันการสมัคร</button>
 
-        <p class="login-link" @click="emit('change-page', 'login')">
+        <p class="login-link" @click="router.push('/login')">
           มีบัญชีอยู่แล้ว? เข้าสู่ระบบ
         </p>
       </div>
@@ -98,11 +112,11 @@ const handleRegister = async () => {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  background-image: url('/background.png'); /* ใช้รูปเดียวกับหน้า Login */
+  background-image: url("/background.png"); /* ใช้รูปเดียวกับหน้า Login */
   background-size: 100% 100%;
   background-position: center;
   background-repeat: no-repeat;
-  font-family: 'Kanit', sans-serif;
+  font-family: "Kanit", sans-serif;
 }
 
 .page-title {
@@ -110,7 +124,7 @@ const handleRegister = async () => {
   font-size: 2.5rem;
   font-weight: bold;
   margin-bottom: 20px;
-  text-shadow: 0 2px 4px rgba(255,255,255,0.5);
+  text-shadow: 0 2px 4px rgba(255, 255, 255, 0.5);
 }
 
 /* กล่องขาว */
@@ -120,7 +134,7 @@ const handleRegister = async () => {
   border-radius: 40px;
   width: 90%;
   max-width: 500px;
-  box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
 }
 
 .form-container {
