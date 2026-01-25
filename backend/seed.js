@@ -3,35 +3,42 @@ const bcrypt = require('bcryptjs');
 
 const dbConfig = {
     host: 'localhost',
-    user: 'root',
-    password: '',
-    database: 'garbage_db',
+    user: 'root',      
+    password: '', // ⚠️ ใช้รหัสผ่านที่คุณทดสอบแล้วผ่าน (น่าจะเป็นค่าว่าง '' ตามที่ error บอกว่า YES)
+    database: 'garbage_db'
 };
 
 const seed = async () => {
     try {
-        const connection =await mysql.createConnection(dbConfig);
-        console.log('Connected to the database.');
+        const connection = await mysql.createConnection(dbConfig);
+        console.log('Connected to database...');
 
-        // 1.Create admin user
-        const adminEmail = 'admin@gmail,com'; // อีเมลสำหรับเข้าสู่ระบบแอดมิน
-        const adminPassword = 'admin1234'; // รหัสผ่านแอดมิน
+        const adminEmail = 'admin@gmail.com';
+        const adminPass = 'admin1234';
+        let adminId = null; // 1. ประกาศตัวแปร adminId รอไว้ก่อนเลย
 
-        const [existingAdmin] = await connection.query('SELECT * FROM users WHERE email = ?', [adminEmail]);
-
+        // --- ส่วนจัดการ Admin ---
+        const [existingAdmin] = await connection.query('SELECT id FROM users WHERE email = ?', [adminEmail]);
+        
         if (existingAdmin.length === 0) {
-            const hashedPassword = await bcrypt.hash(adminPassword, 10);
-            await connection.query(
+            // กรณีไม่มี: สร้างใหม่
+            const hashedPassword = await bcrypt.hash(adminPass, 10);
+            const [result] = await connection.query(
                 `INSERT INTO users (username, email, password, role, provider) VALUES (?, ?, ?, 'admin', 'local')`,
                 ['Super Admin', adminEmail, hashedPassword]
             );
-            console.log(`✅ Admin created! Email: ${adminEmail} | Pass: ${adminPassword}`);
+            adminId = result.insertId; // เก็บ ID จากการสร้าง
+            console.log(`✅ Admin created! (ID: ${adminId})`);
         } else {
-            console.log('ℹ️ Admin user already exists.');
+            // กรณีมีแล้ว: ดึง ID มาใช้
+            adminId = existingAdmin[0].id;
+            console.log(`ℹ️ Admin user already exists. (ID: ${adminId})`);
         }
-        // 2. หา ID ของ Admin เพื่อเอามาใส่ในโพสต์ตัวอย่าง
-        // 3. สร้างข้อมูลปัญหาตัวอย่าง (Dummy Data)
+
+        // --- ส่วนจัดการ Reports (Dummy Data) ---
+        // ตอนนี้ adminId มีค่าแน่นอนแล้ว ไม่ error แน่นอน
         const [reports] = await connection.query('SELECT * FROM reports');
+        
         if (reports.length === 0) {
             const sql = `INSERT INTO reports (user_id, title, type, description, location_name, status) VALUES ?`;
             const values = [
