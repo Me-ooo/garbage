@@ -3,7 +3,7 @@ const router = express.Router();
 const db = require('../config/db');
 
 
-// ดึรายการ users ทั้งหมด
+// ดึงรายการ users ทั้งหมด
 router.get('/users', async (req, res) => {
     try {
         const [rows] = await db.query('SELECT id, username, email, role, created_at FROM users ORDER BY created_at DESC');

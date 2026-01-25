@@ -1,8 +1,9 @@
-const myaql = require('mysql2/promise');
-const connection = myaql.createPool({
+const mysql = require('mysql2/promise');
+
+const connection = mysql.createPool({
     host: 'localhost',
     user: 'root',
-    password: '123456789',
+    password: '',
     database: 'garbage_db',
     waitForConnections: true,
     connectionLimit: 10,
