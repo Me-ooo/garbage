@@ -107,10 +107,12 @@
 
 <script setup>
 import { ref, computed } from 'vue'
-import { defineEmits } from 'vue'
+import { useRouter } from 'vue-router'
+const router = useRouter()
 
-const emit = defineEmits(['change-page'])
-
+const openNewReport = () => {
+  router.push('/reportpage') 
+}
 const userName = ref('โจโจ้')
 const activeMenu = ref('home')
 const searchText = ref('')
@@ -173,24 +175,27 @@ const filterReports = () => {
 
 const handleLogout = () => {
   if (confirm('คุณต้องการออกจากระบบใช่หรือไม่?')) {
-    emit('change-page', 'login')
+    // ล้างข้อมูลการล็อกอิน (ถ้ามี)
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    
+    // สั่งย้ายหน้าไป Login
+    router.push('/login'); 
   }
-}
-
-const openNewReport = () => {
-  emit('change-page', 'reportpage')
 }
 
 const handleMenuClick = (menuId) => {
   if (menuId === 'home') {
-    // Stay on homepage
-    activeMenu.value = menuId
+    // อยู่หน้าเดิม หรือจะสั่งให้โหลดใหม่ก็ได้
+    router.push('/') 
   } else if (menuId === 'report') {
-    emit('change-page', 'reportpage')
+    // ต้องตรงกับ path ใน router/index.js (ของคุณตั้งไว้ว่า /Reportpage)
+    router.push('/Reportpage') 
   } else if (menuId === 'status') {
     console.log('Navigate to status page')
   } else if (menuId === 'admin') {
-    emit('change-page', 'dashboard')
+    // ไปหน้า Admin Dashboard (path คือ /admin)
+    router.push('/admin') 
   }
 }
 

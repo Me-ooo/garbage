@@ -1,55 +1,30 @@
 <script setup>
-import { ref } from 'vue'
-import Login from './components/Login.vue'
-import Register from './components/Register.vue'
-import Homepage from './components/Homepage.vue'
-import Reportpage from './components/Reportpage.vue'
-import ReportImage from './components/ReportImage.vue'
-import Dashboard from './components/Dashboard.vue'
-
-// สร้างตัวแปรไว้สลับหน้า (ค่าเริ่มต้นคือ login)
-const currentPage = ref('login')
-
-// ฟังก์ชันสำหรับเปลี่ยนหน้า
-const togglePage = (pageName) => {
-  currentPage.value = pageName
-}
+// ไม่ต้อง import Components หน้าอื่นๆ เข้ามาแล้ว
+// ไม่ต้องมีตัวแปร currentPage หรือ togglePage แล้ว
 </script>
 
 <template>
   <div class="app-container">
     <router-view />
   </div>
-  <div class="app-main">
-    <Login v-if="currentPage === 'login'" @change-page="togglePage" />
-    <Register v-else-if="currentPage === 'register'" @change-page="togglePage" />
-    <Homepage v-else-if="currentPage === 'homepage'" @change-page="togglePage" />
-    <Reportpage v-else-if="currentPage === 'reportpage'" @change-page="togglePage" />
-    <ReportImage v-else-if="currentPage === 'reportimage'" @change-page="togglePage" />
-    <Dashboard v-else-if="currentPage === 'dashboard'" />
-  </div>
 </template>
 
-
 <style>
-/* ลบขอบขาวเริ่มต้นของ Browser */
+/* Style หลักของ Container */
 .app-container {
-  max-width: 500px;
+  /* max-width: 500px;  <-- ถ้าทำเว็บ Desktop แนะนำให้ลบบรรทัดนี้ออกครับ ไม่งั้นหน้าจอจะแคบ */
   margin: 0 auto;
   min-height: 100vh;
-  flex-direction: white;
   box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
   position: relative;
+  background-color: white; /* เปลี่ยนจาก flex-direction: white (ที่ผิด) เป็น background-color */
 }
+
 body, html {
   margin: 0;
   padding: 0;
   width: 100%;
   height: 100%;
-  overflow: hidden;
-}
-.app-main {
-  width: 100vw;
-  height: 100vh;
+  /* overflow: hidden; <-- ลบออกครับ เพื่อให้หน้ายาวๆ สามารถ Scroll ลงมาได้ */
 }
 </style>

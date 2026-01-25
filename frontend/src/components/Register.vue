@@ -1,9 +1,15 @@
 <script setup>
 import { ref } from 'vue'
+
 import axios from 'axios'
 
 // กำหนด emit เพื่อส่งคำสั่งสลับหน้ากลับไปที่ App.vue
-const emit = defineEmits(['change-page'])
+import { useRouter } from 'vue-router' // 1. import
+const router = useRouter()
+const handleLogin = () => {
+  // ... ล็อกอินสำเร็จ ...
+  router.push('/') // 3. สั่งเปลี่ยนหน้าไปที่ Home (path '/')
+}
 
 const reg = ref({ 
   fullname: '', 

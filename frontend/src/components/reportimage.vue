@@ -134,9 +134,13 @@
 
 <script setup>
 import { ref } from 'vue'
-import { defineEmits } from 'vue'
+import { useRouter } from 'vue-router'
+const router = useRouter()
+// ...
+const openNewReport = () => {
+  router.push('/reportpage') // แบบใหม่ (ต้องตรงกับ path ใน router/index.js)
+}
 
-const emit = defineEmits(['change-page'])
 
 const userName = ref('โจโจ้')
 const fileInput = ref(null)
@@ -258,7 +262,12 @@ const handleMenuClick = (menuId) => {
 
 const handleLogout = () => {
   if (confirm('คุณต้องการออกจากระบบใช่หรือไม่?')) {
-    emit('change-page', 'login')
+    // ล้างข้อมูลการล็อกอิน (ถ้ามี)
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    
+    // สั่งย้ายหน้าไป Login
+    router.push('/login'); 
   }
 }
 </script>

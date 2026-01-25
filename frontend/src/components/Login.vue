@@ -1,17 +1,22 @@
 <script setup>
 import { ref } from 'vue'
-
-const emit = defineEmits(['change-page'])
+import { useRouter } from 'vue-router' // 1. import
+const router = useRouter()          
+// ...
+const openNewReport = () => {
+  router.push('/reportpage') // แบบใหม่ (ต้องตรงกับ path ใน router/index.js)
+}
 const form = ref({ email: '', password: '' })
-
 const handleLogin = () => {
+  // ... ล็อกอินสำเร็จ ...
+  router.push('/') // 3. สั่งเปลี่ยนหน้าไปที่ Home (path '/')
+}
   console.log('Login attempt:', form.value)
   if (form.value.email && form.value.password) {
     emit('change-page', 'homepage')
   } else {
     alert('กรุณากรอกชื่อผู้ใช้และรหัสผ่าน')
   }
-}
 </script>
 
 <template>
