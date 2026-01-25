@@ -5,6 +5,8 @@ import Register from '../components/Register.vue';
 import Dashboard from '../components/Dashboard.vue';        
 import Homepage from '../components/Homepage.vue';
 import AdminDashboard from '../components/AdminDashboard.vue';
+import reportimage from '../component/reportimage.vue';
+import Reportpage from '../components/Reportpage.vue';
 
 
 const routes = createRouter({
@@ -34,6 +36,16 @@ const routes = createRouter({
       path: '/admin',
       name: 'admin',
       component: AdminDashboard
+    },
+    {
+      path: '/reportimage',
+      name: 'reportimage',
+      component: reportimage
+    },
+    {
+       path: '/Reportpage',
+      name: 'Reportpage',
+      component: Reportpage
     }
   ]
 })
