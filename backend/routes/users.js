@@ -1,6 +1,9 @@
 const express = require('express');
 const router = express.Router();
 const db = require('../config/db');
+const multer = require('multer');
+const path = require('path');
+const fs = require('fs');
 
 // ✅ 1. ดึงรายชื่อ users ทั้งหมด
 router.get('/', (req, res) => {
@@ -49,6 +52,62 @@ router.delete('/:id', (req, res) => {
                 return res.status(500).json({ error: 'ไม่สามารถลบผู้ใช้งานได้' });
             }
             res.json({ msg: `ลบผู้ใช้ ID ${userId} เรียบร้อยแล้ว` });
+        });
+    });
+});
+
+const uploadDir = path.join(__dirname, '../uploads');
+if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
+
+const storage = multer.diskStorage({
+    destination: (req, file, cb) => cb(null, 'uploads/'),
+    filename: (req, file, cb) => cb(null, 'user-' + Date.now() + path.extname(file.originalname))
+});
+const upload = multer({ storage: storage });
+
+// --- 2. ดึงข้อมูล User ทั้งหมด (สำหรับ Admin) ---
+router.get('/', (req, res) => {
+    db.query('SELECT * FROM users', (err, results) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json(results);
+    });
+});
+
+// --- 3. ลบ User (สำหรับ Admin) ---
+router.delete('/:id', (req, res) => {
+    db.query('DELETE FROM users WHERE id = ?', [req.params.id], (err, result) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json({ message: 'Loe User Success' });
+    });
+});
+
+// --- 4. ✅ อัปเดตโปรไฟล์ (เปลี่ยนชื่อ, เบอร์, รูป) ---
+router.put('/:id', upload.single('image'), (req, res) => {
+    const id = req.params.id;
+    const { fullname, phone } = req.body;
+    
+    // ถ้ามีการอัปโหลดรูปใหม่ ให้ใช้ path ใหม่, ถ้าไม่มี ให้เป็น null
+    const newImage = req.file ? `/uploads/${req.file.filename}` : null;
+
+    // Logic: ถ้า newImage มีค่า ให้อัปเดตรูปด้วย, ถ้าไม่มี ให้อัปเดตแค่ชื่อ/เบอร์
+    let sql = "";
+    let params = [];
+
+    if (newImage) {
+        sql = "UPDATE users SET fullname = ?, phone = ?, image_url = ? WHERE id = ?";
+        params = [fullname, phone, newImage, id];
+    } else {
+        sql = "UPDATE users SET fullname = ?, phone = ? WHERE id = ?";
+        params = [fullname, phone, id];
+    }
+
+    db.query(sql, params, (err, result) => {
+        if (err) return res.status(500).json({ error: err.message });
+
+        // ดึงข้อมูลล่าสุดส่งกลับไป เพื่อให้ Frontend อัปเดต LocalStorage
+        db.query('SELECT * FROM users WHERE id = ?', [id], (err, rows) => {
+            if (err) return res.status(500).json({ error: err.message });
+            res.json({ message: 'Update Profile Success', user: rows[0] });
         });
     });
 });

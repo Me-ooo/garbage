@@ -1,17 +1,30 @@
 <template>
   <div class="homepage-container">
     <header class="header">
-      <div class="user-profile">
-        <img src="/admin-profile.png" alt="User Avatar" @error="$event.target.src='https://placehold.co/40x40'" />
+      <div 
+        class="user-profile" 
+        @click="$router.push('/profile')"
+        style="cursor: pointer;" 
+        title="แก้ไขโปรไฟล์"
+      >
+        <img
+          :src="userImage"
+          alt="User Avatar"
+          @error="$event.target.src = 'https://placehold.co/40x40?text=User'"
+        />
         <span>สวัสดีคุณ {{ userName }}</span>
       </div>
       <button class="logout-btn" @click="handleLogout">ออกจากระบบ</button>
     </header>
-    
+
     <div class="container">
       <aside class="sidebar">
         <div class="banner-box">
-          <img src="/admin-sidebar.png" alt="Campaign Banner" @error="$event.target.src='https://placehold.co/250x150'" />
+          <img
+            src="/admin-sidebar.png"
+            alt="Campaign Banner"
+            @error="$event.target.src = 'https://placehold.co/250x150'"
+          />
         </div>
 
         <div class="nav-menu">
@@ -29,7 +42,11 @@
 
       <main class="main-content">
         <div class="banner-top">
-          <img src="/admin-banner.png" alt="Environment Banner" @error="$event.target.src='https://placehold.co/800x150'" />
+          <img
+            src="/admin-banner.png"
+            alt="Environment Banner"
+            @error="$event.target.src = 'https://placehold.co/800x150'"
+          />
         </div>
 
         <div class="search-bar">
@@ -38,9 +55,13 @@
             type="text"
             class="search-input"
             placeholder="ค้นหาปัญหา..."
-            @input="handleFilterChange" 
+            @input="handleFilterChange"
           />
-          <select v-model="selectedCategory" class="category-select" @change="handleFilterChange">
+          <select
+            v-model="selectedCategory"
+            class="category-select"
+            @change="handleFilterChange"
+          >
             <option value="all">สถานะ: ทั้งหมด</option>
             <option value="pending">⏳ รอดำเนินการ</option>
             <option value="in_progress">🔧 กำลังแก้ไข</option>
@@ -63,7 +84,7 @@
               "
               :alt="report.title"
               class="report-img"
-              @error="$event.target.src='https://placehold.co/100x100?text=No+Image'"
+              @error="$event.target.src = 'https://placehold.co/100x100?text=No+Image'"
             />
 
             <div class="report-info">
@@ -87,16 +108,16 @@
           </div>
 
           <div class="pagination-container" v-if="totalPages > 0">
-            <button 
-              class="page-btn nav-btn" 
+            <button
+              class="page-btn nav-btn"
               :disabled="currentPage === 1"
               @click="changePage(currentPage - 1)"
             >
               &lt;
             </button>
 
-            <button 
-              v-for="page in totalPages" 
+            <button
+              v-for="page in totalPages"
               :key="page"
               class="page-btn number-btn"
               :class="{ active: currentPage === page }"
@@ -105,15 +126,14 @@
               {{ page }}
             </button>
 
-            <button 
-              class="page-btn nav-btn" 
+            <button
+              class="page-btn nav-btn"
               :disabled="currentPage === totalPages"
               @click="changePage(currentPage + 1)"
             >
               &gt;
             </button>
           </div>
-
         </div>
 
         <button class="fab" @click="openNewReport" title="แจ้งปัญหาใหม่">+</button>
@@ -123,7 +143,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from "vue";
+import { ref, onMounted, computed } from "vue";
 import { useRouter } from "vue-router";
 import axios from "axios";
 
@@ -145,6 +165,17 @@ const menuItems = [
   { id: "admin", label: "Admin Dashboard" },
 ];
 
+// Computed Property สำหรับดึงรูปโปรไฟล์
+const userImage = computed(() => {
+  const userStr = localStorage.getItem('user');
+  if (userStr) {
+    const user = JSON.parse(userStr);
+    // ถ้ามีรูปใน DB ให้ใช้รูปนั้น ถ้าไม่มีให้ใช้รูป Default
+    return user.image_url ? `http://localhost:3000${user.image_url}` : '/admin-profile.png';
+  }
+  return '/admin-profile.png';
+});
+
 onMounted(async () => {
   const user = JSON.parse(localStorage.getItem("user") || "{}");
   if (user.fullname || user.username) {
@@ -162,7 +193,7 @@ const fetchReports = async (page = 1) => {
       headers: { Authorization: `Bearer ${token}` },
       params: {
         page: page,
-        limit: 2, // 🔴 ยังคงเป็น 2 เพื่อให้เห็นปุ่ม (ถ้าเสร็จแล้วแก้กลับเป็น 6 นะครับ)
+        limit: 2, // 🔴 ปรับเป็น 2 เพื่อเทสหน้า (เสร็จแล้วเปลี่ยนเป็น 6)
         search: searchText.value,
         status: selectedCategory.value,
       },
@@ -171,7 +202,6 @@ const fetchReports = async (page = 1) => {
     reports.value = response.data.data;
     currentPage.value = response.data.currentPage;
     totalPages.value = response.data.totalPages;
-
   } catch (err) {
     console.error("Error fetching reports:", err);
     if (err.response && err.response.status === 401) {
@@ -195,41 +225,44 @@ const changePage = (page) => {
 
 // Helper Functions
 const getStatusClass = (status) => {
-  if (status === 'pending') return 'status-pending'
-  if (status === 'in_progress') return 'status-progress'
-  if (status === 'resolved') return 'status-done'
-  return ''
+  if (status === "pending") return "status-pending";
+  if (status === "in_progress") return "status-progress";
+  if (status === "resolved") return "status-done";
+  return "";
 };
 const getStatusLabel = (status) => {
-  if (status === 'pending') return 'รอดำเนินการ'
-  if (status === 'in_progress') return 'กำลังแก้ไข'
-  if (status === 'resolved') return 'แก้ไขแล้ว'
-  return status
+  if (status === "pending") return "รอดำเนินการ";
+  if (status === "in_progress") return "กำลังแก้ไข";
+  if (status === "resolved") return "แก้ไขแล้ว";
+  return status;
 };
 const formatDate = (dateString) => {
-  if (!dateString) return ''
-  return new Date(dateString).toLocaleDateString('th-TH', {
-    day: '2-digit', month: '2-digit', year: '2-digit'
-  })
+  if (!dateString) return "";
+  return new Date(dateString).toLocaleDateString("th-TH", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "2-digit",
+  });
 };
 const formatTime = (dateString) => {
-  if (!dateString) return ''
-  return new Date(dateString).toLocaleTimeString('th-TH', {
-    hour: '2-digit', minute: '2-digit'
-  })
+  if (!dateString) return "";
+  return new Date(dateString).toLocaleTimeString("th-TH", {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 };
 const openNewReport = () => {
   router.push("/reportpage");
 };
 const handleMenuClick = (menuId) => {
-  if (menuId === 'home') fetchReports(1)
-  else if (menuId === 'report') router.push('/reportpage')
-  else if (menuId === 'admin') router.push('/admin')
+  if (menuId === "home") fetchReports(1);
+  else if (menuId === "report") router.push("/reportpage");
+  else if (menuId === "admin") router.push("/admin");
 };
 const handleLogout = () => {
-  if (confirm('ออกจากระบบ?')) {
-    localStorage.clear()
-    router.push('/login')
+  if (confirm("ออกจากระบบ?")) {
+    localStorage.clear();
+    router.push("/login");
   }
 };
 </script>
@@ -276,6 +309,11 @@ const handleLogout = () => {
   display: flex;
   align-items: center;
   gap: 10px;
+  transition: opacity 0.2s;
+}
+
+.user-profile:hover {
+  opacity: 0.8;
 }
 
 .user-profile img {
@@ -283,6 +321,7 @@ const handleLogout = () => {
   height: 40px;
   border-radius: 50%;
   border: 2px solid white;
+  object-fit: cover;
 }
 
 .logout-btn {
@@ -510,12 +549,12 @@ const handleLogout = () => {
   min-width: 80px;
 }
 
-/* ✅ แก้ไข CSS Pagination ให้ตัวหนังสือดำตลอด */
+/* Pagination */
 .pagination-container {
   display: flex;
   justify-content: center;
   align-items: center;
-  gap: 10px; /* เพิ่มช่องว่างระหว่างปุ่มนิดนึง */
+  gap: 10px; /* เพิ่มช่องว่าง */
   margin-top: 20px;
   padding: 10px;
   padding-bottom: 20px;
@@ -524,39 +563,38 @@ const handleLogout = () => {
 .page-btn {
   width: 40px;
   height: 40px;
-  border-radius: 50%; /* กลมดิ๊ก */
-  border: 1px solid #ddd; /* ขอบปกติสีเทาบางๆ */
-  background: white; /* พื้นหลังขาว */
-  color: black; /* 🖤 ตัวหนังสือสีดำตลอด */
+  border-radius: 50%; /* กลม */
+  border: 1px solid #ddd;
+  background: white;
+  color: black; /* ดำ */
   cursor: pointer;
   font-family: "Kanit", sans-serif;
-  font-weight: 600; /* ตัวหนา */
+  font-weight: 600;
   font-size: 16px;
   transition: all 0.2s;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .page-btn:hover:not(:disabled) {
-  background-color: #f0f0f0; /* เมาส์ชี้แล้วเป็นสีเทาอ่อน */
+  background-color: #f0f0f0;
   transform: translateY(-2px);
 }
 
-/* 🔥 สถานะ Active (หน้าที่เลือกอยู่) */
 .page-btn.active {
-  background-color: #d1e7dd; /* พื้นหลังสีเขียวอ่อน (เพื่อให้ตัวหนังสือดำยังชัด) */
-  border: 2px solid var(--primary-green); /* ขอบสีเขียวเข้ม หนาๆ */
-  color: black; /* 🖤 ตัวหนังสือยังคงสีดำ */
-  font-weight: 800; /* หนาพิเศษ */
-  transform: scale(1.1); /* ขยายใหญ่นิดนึง */
+  background-color: #d1e7dd;
+  border: 2px solid var(--primary-green); /* ขอบเขียวหนา */
+  color: black;
+  font-weight: 800;
+  transform: scale(1.1);
   box-shadow: 0 4px 8px rgba(46, 89, 54, 0.2);
 }
 
 .page-btn:disabled {
   background-color: #f9f9f9;
-  color: #ccc; /* ถ้ากดไม่ได้ให้เป็นสีเทาจางๆ */
+  color: #ccc;
   cursor: not-allowed;
   box-shadow: none;
   border: 1px solid #eee;
@@ -564,7 +602,7 @@ const handleLogout = () => {
 
 .nav-btn {
   font-size: 18px;
-  color: black; /* ลูกศรก็สีดำ */
+  color: black;
 }
 
 /* FAB */

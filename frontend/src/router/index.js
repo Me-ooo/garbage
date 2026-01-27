@@ -2,13 +2,12 @@ import { createRouter, createWebHistory } from 'vue-router';
 
 import Login from '../components/Login.vue';
 import Register from '../components/Register.vue';
-import Dashboard from '../components/Dashboard.vue';
+import Profile from '../components/Profile.vue';  
 import Homepage from '../components/Homepage.vue';
 import AdminDashboard from '../components/AdminDashboard.vue';
 import reportimage from '../components/reportimage.vue';
 import Reportpage from '../components/Reportpage.vue';
 
-// 1. แก้ชื่อตัวแปรจาก routes เป็น router
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
@@ -27,12 +26,7 @@ const router = createRouter({
       name: 'register',
       component: Register
     },
-    {
-      path: '/dashboard',
-      name: 'dashboard',
-      component: Dashboard,
-      meta: { requiresAuth: true } // ✅ ต้องล็อกอินถึงเข้าได้
-    },
+    // ❌ ลบ Route /dashboard ออกแล้ว เพราะเราใช้ AdminDashboard แทน
     {
       path: '/admin',
       name: 'admin',
@@ -43,20 +37,27 @@ const router = createRouter({
       path: '/reportimage',
       name: 'reportimage',
       component: reportimage,
-      meta: { requiresAuth: true } // ✅ ต้องล็อกอินถึงเข้าได้
+      meta: { requiresAuth: true }
     },
     {
-       path: '/reportpage', // 🔄 แก้เป็นตัวเล็กให้เหมือนกัน
-      name: 'reportpage',   // 🔄 แก้เป็นตัวเล็ก
+      path: '/reportpage',
+      name: 'reportpage',
       component: Reportpage,
-      meta: { requiresAuth: true } // ✅ ต้องล็อกอินถึงเข้าได้
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/profile',
+      name: 'profile',
+      component: Profile,
+      meta: { requiresAuth: true }
     }
   ]
 })
 
-// 2. ระบบป้องกัน 
+// ระบบป้องกัน (Navigation Guard)
 router.beforeEach((to, from, next) => {
   const token = localStorage.getItem('token');
+  
   // แปลง user string เป็น object อย่างปลอดภัย
   let user = {};
   try {
@@ -65,15 +66,21 @@ router.beforeEach((to, from, next) => {
     user = {};
   }
 
-  // ถ้าหน้านั้นต้องการการล็อกอิน (requiresAuth) แต่ไม่มี Token
+  // 1. ถ้าหน้านั้นต้องการการล็อกอิน (requiresAuth) แต่ไม่มี Token
   if (to.meta.requiresAuth && !token) {
     return next('/login'); // กลับไปหน้า Login
   }
 
-  // ถ้าหน้านั้นต้องการ Admin (requiresAdmin) แต่ Role ไม่ใช่ admin
+  // 2. ถ้าหน้านั้นต้องการ Admin (requiresAdmin) แต่ Role ไม่ใช่ admin
   if (to.meta.requiresAdmin && user.role !== 'admin') {
-    alert('คุณไม่มีสิทธิ์เข้าถึงหน้านี้');
-    return next('/'); // กลับไปหน้า Home
+    alert('คุณไม่มีสิทธิ์เข้าถึงหน้านี้ (สำหรับผู้ดูแลระบบเท่านั้น)');
+    return next('/'); // เด้งกลับหน้า Home
+  }
+
+  // 3. (เพิ่มเติม) ถ้าล็อกอินแล้ว แต่อยู่หน้า Login/Register ให้เด้งเข้าข้างในเลย
+  if ((to.path === '/login' || to.path === '/register') && token) {
+     if (user.role === 'admin') return next('/admin');
+     return next('/');
   }
 
   next(); // อนุญาตให้ไปต่อ

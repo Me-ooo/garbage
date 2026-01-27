@@ -4,7 +4,7 @@ const bodyParser = require('body-parser');
 const path = require('path');
 require('dotenv').config();
 
-// Import Routes (ประกาศแค่ตรงนี้ครั้งเดียวพอ)
+// Import Routes 
 const authRoutes = require('./routes/auth');
 const reportRoutes = require('./routes/reports');
 const adminRoutes = require('./routes/admin'); // ✅
