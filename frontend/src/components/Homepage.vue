@@ -322,7 +322,7 @@ const handleLogout = () => {
 /* Header */
 .header {
   background-color: var(--primary-green);
-  color: white;
+  color: rgb(2, 70, 25);
   padding: 15px 20px;
   display: flex;
   justify-content: space-between;
@@ -360,7 +360,7 @@ const handleLogout = () => {
   transition: 0.2s;
 }
 .logout-btn:hover {
-  background-color: #ccc;
+  background-color: #ff0000;
 }
 
 /* Main Layout */
@@ -624,12 +624,10 @@ const handleLogout = () => {
 }
 
 .page-btn.active {
-  background-color: #d1e7dd;
-  border: 2px solid var(--primary-green);
-  color: black;
-  font-weight: 800;
-  transform: scale(1.1);
-  box-shadow: 0 4px 8px rgba(46, 89, 54, 0.2);
+  background-color: #2e5936; /* สีเขียวเข้มเมื่อเลือก */
+  color: white;
+  border-color: #2e5936;
+  box-shadow: 0 4px 10px rgba(46, 89, 54, 0.3);
 }
 
 .page-btn:disabled {

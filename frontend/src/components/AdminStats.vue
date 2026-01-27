@@ -62,7 +62,7 @@ const props = defineProps({
 <style scoped>
 .stats-container {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); /* จัดเรียงอัตโนมัติ */
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
   gap: 25px;
   margin-bottom: 30px;
 }
@@ -71,14 +71,13 @@ const props = defineProps({
   background: white;
   border-radius: 20px;
   padding: 25px;
-  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.05); /* เงานุ่มๆ */
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.05);
   transition: all 0.3s ease;
   border: 1px solid rgba(0, 0, 0, 0.02);
   position: relative;
   overflow: hidden;
 }
 
-/* Effect ตอนเอาเมาส์ชี้ */
 .stat-card:hover {
   transform: translateY(-5px);
   box-shadow: 0 15px 30px rgba(0, 0, 0, 0.1);
@@ -128,39 +127,17 @@ const props = defineProps({
   transform: scale(1.1) rotate(5deg);
 }
 
-/* --- ธีมสีแต่ละการ์ด --- */
+/* --- ธีมสี --- */
+.users-card .stat-icon { background-color: rgba(46, 204, 113, 0.15); color: #27ae60; }
+.users-card { border-left: 5px solid #27ae60; }
 
-/* Users: สีเขียว */
-.users-card .stat-icon {
-  background-color: rgba(46, 204, 113, 0.15);
-  color: #27ae60;
-}
-.users-card {
-  border-left: 5px solid #27ae60;
-}
+.reports-card .stat-icon { background-color: rgba(52, 152, 219, 0.15); color: #2980b9; }
+.reports-card { border-left: 5px solid #2980b9; }
 
-/* Reports: สีฟ้า */
-.reports-card .stat-icon {
-  background-color: rgba(52, 152, 219, 0.15);
-  color: #2980b9;
-}
-.reports-card {
-  border-left: 5px solid #2980b9;
-}
+.pending-card .stat-icon { background-color: rgba(241, 196, 15, 0.15); color: #f39c12; }
+.pending-card { border-left: 5px solid #f39c12; }
 
-/* Pending: สีเหลือง/ส้ม */
-.pending-card .stat-icon {
-  background-color: rgba(241, 196, 15, 0.15);
-  color: #f39c12;
-}
-.pending-card {
-  border-left: 5px solid #f39c12;
-}
-
-/* Responsive */
 @media (max-width: 768px) {
-  .stats-container {
-    grid-template-columns: 1fr; /* มือถือเรียงลงมา */
-  }
+  .stats-container { grid-template-columns: 1fr; }
 }
 </style>

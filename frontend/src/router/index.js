@@ -7,6 +7,7 @@ import Homepage from '../components/Homepage.vue';
 import AdminDashboard from '../components/AdminDashboard.vue';
 import reportimage from '../components/reportimage.vue';
 import Reportpage from '../components/Reportpage.vue';
+import SystemOverview  from '../components/SystemOverview.vue';
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -50,7 +51,13 @@ const router = createRouter({
       name: 'profile',
       component: Profile,
       meta: { requiresAuth: true }
-    }
+    },
+    {
+    path: '/system-overview', // ✅ ตั้งชื่อ Path
+    name: 'SystemOverview',
+    component: SystemOverview,
+    meta: { requiresAuth: true, role: 'admin' } // ใส่ role admin ด้วยถ้ามีระบบเช็ค
+  },
   ]
 })
 

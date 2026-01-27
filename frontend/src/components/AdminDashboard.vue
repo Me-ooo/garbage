@@ -29,36 +29,40 @@
         </div>
 
         <div class="nav-menu">
+          <button class="menu-btn" @click="goToSystemOverview">
+            <i class="bi bi-bar-chart-line-fill"></i> ภาพรวมระบบ
+          </button>
+
           <button
             class="menu-btn"
             :class="{ 'active-btn': activeTab === 'reports' }"
-            @click="activeTab = 'reports'"
+            @click="switchTab('reports')"
           >
-            รายการปัญหา
+            <i class="bi bi-file-earmark-text-fill"></i> รายการปัญหา
           </button>
 
           <button
             class="menu-btn"
             :class="{ 'active-btn': activeTab === 'users' }"
-            @click="activeTab = 'users'"
+            @click="switchTab('users')"
           >
-            รายชื่อผู้ใช้
+            <i class="bi bi-people-fill"></i> รายชื่อผู้ใช้
           </button>
 
-          <button class="menu-btn back-home-btn" @click="goToHome">กลับหน้าหลัก</button>
+          <div class="menu-divider"></div>
+
+          <button class="menu-btn back-home-btn" @click="goToHome">
+            <i class="bi bi-house-door-fill"></i> กลับหน้าหลัก
+          </button>
         </div>
       </aside>
 
       <main class="main-content">
-        <AdminStats
-          :totalUsers="users.length"
-          :totalReports="reports.length"
-          :pendingReports="pendingCount"
-        />
-
         <div class="content-header">
           <h2>
-            {{ activeTab === "reports" ? "จัดการรายการปัญหา" : "จัดการรายชื่อผู้ใช้" }}
+            {{
+              activeTab === "reports" ? "ตารางรายการแจ้งปัญหา" : "ตารางรายชื่อผู้ใช้งาน"
+            }}
           </h2>
         </div>
 
@@ -103,7 +107,7 @@
                 </tr>
               </thead>
               <tbody>
-                <tr v-for="report in filteredReports" :key="report.id">
+                <tr v-for="report in paginatedItems" :key="report.id">
                   <td>
                     <div class="img-wrapper">
                       <img
@@ -160,7 +164,7 @@
                     </div>
                   </td>
                 </tr>
-                <tr v-if="filteredReports.length === 0">
+                <tr v-if="paginatedItems.length === 0">
                   <td colspan="6" class="empty-row">ไม่พบข้อมูลที่ค้นหา</td>
                 </tr>
               </tbody>
@@ -180,7 +184,7 @@
                 </tr>
               </thead>
               <tbody>
-                <tr v-for="user in filteredUsers" :key="user.id">
+                <tr v-for="user in paginatedItems" :key="user.id">
                   <td>
                     <div class="img-wrapper circle">
                       <img
@@ -217,11 +221,39 @@
                     </button>
                   </td>
                 </tr>
-                <tr v-if="filteredUsers.length === 0">
+                <tr v-if="paginatedItems.length === 0">
                   <td colspan="6" class="empty-row">ไม่พบรายชื่อผู้ใช้</td>
                 </tr>
               </tbody>
             </table>
+          </div>
+
+          <div class="pagination-container" v-if="totalPages > 1">
+            <button
+              class="page-btn nav-btn"
+              :disabled="currentPage === 1"
+              @click="changePage(currentPage - 1)"
+            >
+              <i class="bi bi-chevron-left"></i>
+            </button>
+
+            <button
+              v-for="page in totalPages"
+              :key="page"
+              class="page-btn number-btn"
+              :class="{ active: currentPage === page }"
+              @click="changePage(page)"
+            >
+              {{ page }}
+            </button>
+
+            <button
+              class="page-btn nav-btn"
+              :disabled="currentPage === totalPages"
+              @click="changePage(currentPage + 1)"
+            >
+              <i class="bi bi-chevron-right"></i>
+            </button>
           </div>
         </div>
       </main>
@@ -234,17 +266,19 @@ import { ref, onMounted, watch, computed } from "vue";
 import axios from "axios";
 import Swal from "sweetalert2";
 import { useRouter } from "vue-router";
-// Import Stats Component
-import AdminStats from "./AdminStats.vue";
 
 const router = useRouter();
-const activeTab = ref("reports");
+const activeTab = ref("reports"); // Default active tab
 const reports = ref([]);
 const users = ref([]);
 const loading = ref(false);
 const userName = ref("Admin");
 const searchText = ref("");
 const filterStatus = ref("all");
+
+// --- Pagination Variables ---
+const currentPage = ref(1);
+const itemsPerPage = 6; // จำนวนรายการต่อหน้า
 
 const userImage = computed(() => {
   const userStr = localStorage.getItem("user");
@@ -257,10 +291,7 @@ const userImage = computed(() => {
   return "/admin-profile.png";
 });
 
-const pendingCount = computed(
-  () => reports.value.filter((r) => r.status === "pending").length
-);
-
+// กรองข้อมูล Reports
 const filteredReports = computed(() => {
   return reports.value.filter((report) => {
     const matchStatus =
@@ -274,6 +305,7 @@ const filteredReports = computed(() => {
   });
 });
 
+// กรองข้อมูล Users
 const filteredUsers = computed(() => {
   return users.value.filter((user) => {
     const query = searchText.value.toLowerCase();
@@ -283,6 +315,43 @@ const filteredUsers = computed(() => {
       (user.email && user.email.toLowerCase().includes(query))
     );
   });
+});
+
+// ✅ Computed สำหรับตัดข้อมูลตามหน้า (Pagination)
+const paginatedItems = computed(() => {
+  // เลือกข้อมูลตาม Tab ที่ Active อยู่
+  const list =
+    activeTab.value === "reports" ? filteredReports.value : filteredUsers.value;
+
+  const start = (currentPage.value - 1) * itemsPerPage;
+  const end = start + itemsPerPage;
+  return list.slice(start, end);
+});
+
+// ✅ คำนวณจำนวนหน้าทั้งหมด
+const totalPages = computed(() => {
+  const list =
+    activeTab.value === "reports" ? filteredReports.value : filteredUsers.value;
+  return Math.ceil(list.length / itemsPerPage);
+});
+
+// ✅ ฟังก์ชันเปลี่ยนหน้า
+const changePage = (page) => {
+  if (page >= 1 && page <= totalPages.value) {
+    currentPage.value = page;
+  }
+};
+
+// ✅ ฟังก์ชันเปลี่ยน Tab (พร้อมรีเซ็ตหน้า)
+const switchTab = (tabName) => {
+  activeTab.value = tabName;
+  currentPage.value = 1;
+  searchText.value = ""; // รีเซ็ตคำค้นหาด้วยถ้าต้องการ
+};
+
+// รีเซ็ตหน้าเป็น 1 เมื่อมีการค้นหา หรือเปลี่ยน Filter
+watch([searchText, filterStatus], () => {
+  currentPage.value = 1;
 });
 
 const getAuthConfig = () => ({
@@ -307,7 +376,6 @@ const fetchData = async () => {
   loading.value = false;
 };
 
-// ✅ ฟังก์ชันดูรายละเอียด + ปุ่ม Google Maps
 const viewAndForward = (report) => {
   const mapLink = `https://www.google.com/maps/search/?api=1&query=${report.latitude},${report.longitude}`;
 
@@ -317,7 +385,6 @@ const viewAndForward = (report) => {
       <div style="text-align: left; font-size: 0.95rem;">
         <img src="${report.image_url ? "http://localhost:3000" + report.image_url : ""}" 
              style="width:100%; max-height:250px; object-fit:cover; border-radius:12px; margin-bottom:15px; box-shadow: 0 4px 10px rgba(0,0,0,0.1);">
-        
         <div style="background:#f9f9f9; padding:15px; border-radius:10px; margin-bottom:15px;">
           <p class="mb-1"><strong>👤 ผู้แจ้ง:</strong> ${report.username || "ไม่ระบุ"}</p>
           <p class="mb-1"><strong>📞 เบอร์โทร:</strong> ${report.contact || "-"}</p>
@@ -326,11 +393,9 @@ const viewAndForward = (report) => {
       report.longitude
     }</p>
         </div>
-
         <a href="${mapLink}" target="_blank" class="btn-map" style="display:block; text-align:center; background:#4285F4; color:white; padding:10px; border-radius:30px; text-decoration:none; font-weight:bold; margin-bottom:15px;">
           <i class="bi bi-geo-alt-fill"></i> เปิดใน Google Maps
         </a>
-
         <hr style="margin: 15px 0; border-color:#eee;">
         <label style="font-weight:bold; display:block; margin-bottom:8px;">ส่งต่อไปยังหน่วยงาน:</label>
         <select id="agency-select" class="swal2-input" style="width: 100%; margin: 0; border-radius:8px;">
@@ -404,7 +469,7 @@ const deleteReport = async (id) => {
 const deleteUser = async (id) => {
   if (
     await Swal.fire({
-      title: "ยืนยันการลบ ? แน่ใจนะว่าจะลบผู้ใช้นี้",
+      title: "ยืนยันการลบ?",
       icon: "warning",
       showCancelButton: true,
       confirmButtonColor: "#d33",
@@ -424,6 +489,8 @@ const logout = () => {
   }
 };
 const goToHome = () => router.push("/");
+const goToSystemOverview = () => router.push("/system-overview");
+
 const getStatusClass = (s) =>
   ({
     pending: "status-pending",
@@ -527,31 +594,77 @@ onMounted(() => {
   padding: 20px;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
 }
+
 .menu-btn {
-  background: #eee;
-  border: 1px solid #ccc;
-  padding: 12px;
-  border-radius: 25px;
+  background: #f8f9fa;
+  border: 1px solid #eee;
+  padding: 12px 15px;
+  border-radius: 10px;
   cursor: pointer;
-  text-align: center;
-  font-weight: 600;
+  text-align: left;
+  font-weight: 500;
   font-family: "Kanit";
-  transition: 0.2s;
+  transition: all 0.2s;
+  color: #555;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.95rem;
 }
 .menu-btn:hover {
-  background-color: #e0e0e0;
+  background-color: #f0f0f0;
+  transform: translateX(3px);
 }
+.menu-btn i {
+  font-size: 1.1rem;
+  color: #777;
+  width: 20px;
+  text-align: center;
+}
+
+/* ✅ Active Button Style */
 .active-btn {
   background: #2e5936;
   color: white;
-  border: none;
+  border-color: #2e5936;
+  box-shadow: 0 4px 10px rgba(46, 89, 54, 0.2);
+}
+.active-btn:hover {
+  background-color: #2e5936;
+  transform: none;
+}
+.active-btn i {
+  color: white;
+}
+
+.menu-label {
+  font-size: 0.85rem;
+  color: #999;
+  margin-top: 10px;
+  margin-bottom: 2px;
+  padding-left: 5px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+.menu-divider {
+  height: 1px;
+  background: #eee;
+  margin: 5px 0;
 }
 .back-home-btn {
   margin-top: auto;
   background: #555;
   color: white;
+  border: none;
+  justify-content: center;
+}
+.back-home-btn i {
+  color: white;
+}
+.back-home-btn:hover {
+  background-color: #333;
 }
 
 .main-content {
@@ -559,9 +672,8 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   padding-bottom: 20px;
-} /* ปรับ main content ให้ยืดหยุ่น */
+}
 
-/* Search Bar */
 .search-bar {
   background-color: white;
   padding: 10px;
@@ -590,13 +702,14 @@ onMounted(() => {
   font-family: "Kanit";
 }
 
-/* ✅ Table Styles (Card Style) */
 .table-card {
   background: white;
   border-radius: 20px;
   padding: 20px;
   box-shadow: 0 10px 20px rgba(0, 0, 0, 0.05);
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 .custom-table {
   width: 100%;
@@ -615,12 +728,9 @@ onMounted(() => {
   border-bottom: 1px solid #f0f0f0;
   vertical-align: middle;
 }
-.custom-table tr:last-child td {
-  border-bottom: none;
-}
 .custom-table tr:hover {
   background-color: #f9fdf9;
-} /* สีเขียวอ่อนๆ เวลาชี้ */
+}
 
 .img-wrapper {
   width: 50px;
@@ -712,12 +822,57 @@ onMounted(() => {
   background: #dc3545;
   color: white;
 }
-
 .empty-row {
   text-align: center;
   padding: 40px;
   color: #999;
   font-style: italic;
+}
+
+/* ✅ CSS สำหรับ Pagination Bar */
+.pagination-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+  margin-top: 20px;
+  padding: 10px;
+  padding-bottom: 20px;
+}
+
+.page-btn {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 1px solid #ddd;
+  background: white;
+  color: #555;
+  cursor: pointer;
+  font-family: "Kanit";
+  font-weight: 600;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  transition: all 0.2s;
+}
+
+.page-btn:hover:not(:disabled) {
+  background-color: #f0f0f0;
+  border-color: #ccc;
+}
+
+.page-btn.active {
+  background-color: #2e5936;
+  color: white;
+  border-color: #2e5936;
+  transform: scale(1.1);
+  box-shadow: 0 4px 8px rgba(46, 89, 54, 0.2);
+}
+
+.page-btn:disabled {
+  color: #ccc;
+  cursor: not-allowed;
+  background-color: #fafafa;
 }
 
 @media (max-width: 768px) {
