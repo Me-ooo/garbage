@@ -862,11 +862,10 @@ onMounted(() => {
 }
 
 .page-btn.active {
-  background-color: #2e5936;
+  background-color: #2e5936; /* สีเขียวเข้มเมื่อเลือก */
   color: white;
   border-color: #2e5936;
-  transform: scale(1.1);
-  box-shadow: 0 4px 8px rgba(46, 89, 54, 0.2);
+  box-shadow: 0 4px 10px rgba(46, 89, 54, 0.3);
 }
 
 .page-btn:disabled {
