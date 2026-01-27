@@ -30,7 +30,7 @@
 
         <div class="nav-menu">
           <button class="menu-btn" @click="goToSystemOverview">
-            <i class="bi bi-bar-chart-line-fill"></i> ภาพรวมระบบ
+            <i class="bi bi-bar-chart-line-fill"></i> ภาพรวม
           </button>
 
           <button

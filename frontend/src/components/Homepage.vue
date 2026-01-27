@@ -1,17 +1,8 @@
 <template>
   <div class="homepage-container">
     <header class="header">
-      <div 
-        class="user-profile" 
-        @click="$router.push('/profile')"
-        style="cursor: pointer;" 
-        title="แก้ไขโปรไฟล์"
-      >
-        <img
-          :src="userImage"
-          alt="User Avatar"
-          @error="$event.target.src = 'https://placehold.co/40x40?text=User'"
-        />
+      <div class="user-profile" @click="$router.push('/profile')" style="cursor: pointer;" title="แก้ไขโปรไฟล์">
+        <img :src="userImage" alt="User Avatar" @error="$event.target.src = 'https://placehold.co/40x40?text=User'" />
         <span>สวัสดีคุณ {{ userName }}</span>
       </div>
       <button class="logout-btn" @click="handleLogout">ออกจากระบบ</button>
@@ -20,20 +11,12 @@
     <div class="container">
       <aside class="sidebar">
         <div class="banner-box">
-          <img
-            src="/admin-sidebar.png"
-            alt="Campaign Banner"
-            @error="$event.target.src = 'https://placehold.co/250x150'"
-          />
+          <img src="/admin-sidebar.png" alt="Campaign Banner"
+            @error="$event.target.src = 'https://placehold.co/250x150'" />
         </div>
 
         <div class="nav-menu">
-          <button
-            v-for="menu in menuItems"
-            :key="menu.id"
-            class="menu-btn"
-            @click="handleMenuClick(menu.id)"
-          >
+          <button v-for="menu in menuItems" :key="menu.id" class="menu-btn" @click="handleMenuClick(menu.id)">
             {{ menu.label }}
           </button>
         </div>
@@ -41,26 +24,14 @@
 
       <main class="main-content">
         <div class="banner-top">
-          <img
-            src="/admin-banner.png"
-            alt="Environment Banner"
-            @error="$event.target.src = 'https://placehold.co/800x150'"
-          />
+          <img src="/admin-banner.png" alt="Environment Banner"
+            @error="$event.target.src = 'https://placehold.co/800x150'" />
         </div>
 
         <div class="search-bar">
-          <input
-            v-model="searchText"
-            type="text"
-            class="search-input"
-            placeholder="ค้นหาปัญหา..."
-            @input="handleFilterChange"
-          />
-          <select
-            v-model="selectedCategory"
-            class="category-select"
-            @change="handleFilterChange"
-          >
+          <input v-model="searchText" type="text" class="search-input" placeholder="ค้นหาปัญหา..."
+            @input="handleFilterChange" />
+          <select v-model="selectedCategory" class="category-select" @change="handleFilterChange">
             <option value="all">สถานะ: ทั้งหมด</option>
             <option value="pending">⏳ รอดำเนินการ</option>
             <option value="in_progress">🔧 กำลังแก้ไข</option>
@@ -75,25 +46,18 @@
 
         <div v-else class="report-list">
           <div v-for="report in reports" :key="report.id" class="report-card">
-            <img
-              :src="
-                report.image_url
-                  ? `http://localhost:3000${report.image_url}`
-                  : '/no-image.png'
-              "
-              :alt="report.title"
-              class="report-img"
-              @click="viewReportDetails(report)"
-              style="cursor: pointer;"
-              @error="$event.target.src = 'https://placehold.co/100x100?text=No+Image'"
-            />
+            <img :src="report.image_url
+                ? `http://localhost:3000${report.image_url}`
+                : '/no-image.png'
+              " :alt="report.title" class="report-img" @click="viewReportDetails(report)" style="cursor: pointer;"
+              @error="$event.target.src = 'https://placehold.co/100x100?text=No+Image'" />
 
             <div class="report-info">
               <div class="report-header">
                 <span class="status-badge" :class="getStatusClass(report.status)">
                   {{ getStatusLabel(report.status) }}
                 </span>
-                
+
                 <button class="btn-view" @click="viewReportDetails(report)" title="ดูรายละเอียด">
                   <i class="bi bi-eye-fill"></i>
                 </button>
@@ -115,29 +79,17 @@
           </div>
 
           <div class="pagination-container" v-if="totalPages > 0">
-            <button
-              class="page-btn nav-btn"
-              :disabled="currentPage === 1"
-              @click="changePage(currentPage - 1)"
-            >
+            <button class="page-btn nav-btn" :disabled="currentPage === 1" @click="changePage(currentPage - 1)">
               &lt;
             </button>
 
-            <button
-              v-for="page in totalPages"
-              :key="page"
-              class="page-btn number-btn"
-              :class="{ active: currentPage === page }"
-              @click="changePage(page)"
-            >
+            <button v-for="page in totalPages" :key="page" class="page-btn number-btn"
+              :class="{ active: currentPage === page }" @click="changePage(page)">
               {{ page }}
             </button>
 
-            <button
-              class="page-btn nav-btn"
-              :disabled="currentPage === totalPages"
-              @click="changePage(currentPage + 1)"
-            >
+            <button class="page-btn nav-btn" :disabled="currentPage === totalPages"
+              @click="changePage(currentPage + 1)">
               &gt;
             </button>
           </div>
@@ -165,10 +117,9 @@ const selectedCategory = ref("all");
 const currentPage = ref(1);
 const totalPages = ref(1);
 
-// ✅ แก้ไข: ลบเมนู "ติดตามสถานะ" และ "Admin" ออก เหลือแค่ 2 อย่าง
 const menuItems = [
   { id: "home", label: "หน้าหลัก" },
-  { id: "report", label: "แจ้งปัญหา" }
+  { id: "report", label: "แจ้งปัญหา" },
 ];
 
 const userImage = computed(() => {
@@ -216,23 +167,44 @@ const fetchReports = async (page = 1) => {
   }
 };
 
+// ✅ ฟังก์ชันแสดง Popup รายละเอียด (ตกแต่งใหม่ตามรูป)
 const viewReportDetails = (report) => {
+  const mapLink = `https://www.google.com/maps/search/?api=1&query=${report.latitude},${report.longitude}`;
+
   Swal.fire({
-    title: `<strong>${report.title}</strong>`,
+    title: `<h3 style="color:#333; margin-bottom:5px;">${report.title}</h3>`,
     html: `
-      <div style="text-align: left; font-size: 0.95rem;">
-        <img src="${report.image_url ? 'http://localhost:3000'+report.image_url : ''}" 
-             style="width:100%; max-height:250px; object-fit:cover; border-radius:8px; margin-bottom:15px; border:1px solid #ddd;">
+      <div style="text-align: left; font-size: 0.95rem; color:#555;">
         
-        <p><strong>รายละเอียด:</strong> <br>${report.description}</p>
-        <p><strong>สถานะ:</strong> ${getStatusLabel(report.status)}</p>
-        <p><strong>วันที่แจ้ง:</strong> ${formatDate(report.created_at)} เวลา ${formatTime(report.created_at)}</p>
-        <p><strong>พิกัด:</strong> ${report.latitude || '-'}, ${report.longitude || '-'}</p>
+        <div style="margin-bottom: 15px; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 10px rgba(0,0,0,0.1);">
+          <img src="${report.image_url ? 'http://localhost:3000' + report.image_url : '/no-image.png'}" 
+               style="width:100%; max-height:280px; object-fit:cover; display:block;">
+        </div>
+
+        <div style="background-color: #f8f9fa; padding: 15px; border-radius: 10px; margin-bottom: 15px; border: 1px solid #eee;">
+          <p style="margin: 5px 0;"><strong>👤 ผู้แจ้ง:</strong> ${report.username || 'ไม่ระบุ'}</p>
+          <p style="margin: 5px 0;"><strong>📞 เบอร์โทร:</strong> ${report.contact || '-'}</p>
+          <p style="margin: 5px 0;"><strong>📝 รายละเอียด:</strong><br>${report.description}</p>
+          <p style="margin: 5px 0;"><strong>📍 พิกัด:</strong> ${report.latitude || '-'}, ${report.longitude || '-'}</p>
+        </div>
+
+        <a href="${mapLink}" target="_blank" 
+           style="display: flex; align-items: center; justify-content: center; gap: 8px; 
+                  background-color: #4285F4; color: white; text-decoration: none; 
+                  padding: 12px; border-radius: 25px; font-weight: bold; 
+                  box-shadow: 0 4px 6px rgba(66, 133, 244, 0.3); transition: 0.2s;">
+          <i class="bi bi-geo-alt-fill"></i> เปิดใน Google Maps
+        </a>
+
       </div>
     `,
-    confirmButtonText: 'ปิด',
-    confirmButtonColor: '#2e5936',
-    showCloseButton: true
+    showConfirmButton: false, // ซ่อนปุ่ม OK เดิม
+    showCloseButton: true, // ปุ่มกากบาทมุมขวาบน
+    customClass: {
+      popup: 'custom-swal-popup' // เพิ่มคลาสเผื่อปรับแต่ง CSS เพิ่มเติม
+    },
+    width: '500px',
+    padding: '20px'
   });
 };
 
@@ -278,7 +250,6 @@ const openNewReport = () => {
   router.push("/reportpage");
 };
 
-// ✅ ปรับปรุง handleMenuClick ให้เหลือแค่เมนูที่มีอยู่
 const handleMenuClick = (menuId) => {
   if (menuId === "home") fetchReports(1);
   else if (menuId === "report") router.push("/reportpage");
@@ -322,7 +293,7 @@ const handleLogout = () => {
 /* Header */
 .header {
   background-color: var(--primary-green);
-  color: rgb(2, 70, 25);
+  color: white;
   padding: 15px 20px;
   display: flex;
   justify-content: space-between;
@@ -359,8 +330,9 @@ const handleLogout = () => {
   font-weight: 600;
   transition: 0.2s;
 }
+
 .logout-btn:hover {
-  background-color: #ff0000;
+  background-color: #ccc;
 }
 
 /* Main Layout */
@@ -417,6 +389,7 @@ const handleLogout = () => {
   transition: 0.2s;
   font-family: "Kanit", sans-serif;
 }
+
 .menu-btn:hover {
   background-color: #e0e0e0;
 }
@@ -428,8 +401,7 @@ const handleLogout = () => {
   border-radius: 15px;
   padding: 20px;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-  /* ✅ เพิ่ม position relative เพื่อให้ปุ่ม FAB อ้างอิงจากกรอบนี้ */
-  position: relative; 
+  position: relative;
   display: flex;
   flex-direction: column;
   overflow-y: auto;
@@ -443,6 +415,7 @@ const handleLogout = () => {
   border-radius: 10px;
   overflow: hidden;
 }
+
 .banner-top img {
   width: 100%;
   height: 100%;
@@ -451,40 +424,42 @@ const handleLogout = () => {
 
 /* Search Bar */
 .search-bar {
-  background-color: white; /* เปลี่ยนพื้นหลังเป็นสีขาวเพื่อให้กรอบชัด */
+  background-color: white;
   padding: 10px;
-  border-radius: 12px; /* ปรับความโค้งให้สวยงาม */
+  border-radius: 12px;
   display: flex;
   gap: 10px;
   margin-bottom: 20px;
-  border: 1px solid #ddd; /* เพิ่มเส้นขอบสีเทาอ่อน */
+  border: 1px solid #ddd;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
 }
 
 .search-input {
   flex-grow: 1;
   padding: 10px 15px;
-  border-radius: 8px; /* ปรับความโค้ง input */
-  border: 1px solid #eee; /* เส้นขอบบางๆ */
+  border-radius: 8px;
+  border: 1px solid #eee;
   outline: none;
   font-family: "Kanit", sans-serif;
-  background-color: #f9f9f9; /* สีพื้นหลัง input อ่อนๆ */
+  background-color: #f9f9f9;
   transition: border-color 0.2s;
 }
+
 .search-input:focus {
-  border-color: #2e5936; /* เปลี่ยนสีขอบเมื่อกดพิมพ์ */
+  border-color: #2e5936;
   background-color: white;
 }
 
 .category-select {
- padding: 10px 15px;
-  border-radius: 8px; /* ปรับความโค้ง select */
+  padding: 10px 15px;
+  border-radius: 8px;
   border: 1px solid #eee;
   background-color: #f9f9f9;
   cursor: pointer;
   font-family: "Kanit", sans-serif;
   transition: border-color 0.2s;
 }
+
 .category-select:focus {
   border-color: #2e5936;
 }
@@ -509,6 +484,7 @@ const handleLogout = () => {
   transition: transform 0.2s;
   background: #fff;
 }
+
 .report-card:hover {
   transform: translateY(-2px);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
@@ -560,9 +536,20 @@ const handleLogout = () => {
   font-weight: bold;
 }
 
-.status-pending { background-color: #fff3cd; color: #856404; }
-.status-progress { background-color: #cff4fc; color: #055160; }
-.status-done { background-color: #d1e7dd; color: #0f5132; }
+.status-pending {
+  background-color: #fff3cd;
+  color: #856404;
+}
+
+.status-progress {
+  background-color: #cff4fc;
+  color: #055160;
+}
+
+.status-done {
+  background-color: #d1e7dd;
+  color: #0f5132;
+}
 
 .report-meta {
   text-align: right;
@@ -584,6 +571,7 @@ const handleLogout = () => {
   padding: 0;
   margin-left: 10px;
 }
+
 .btn-view:hover {
   transform: scale(1.1);
   color: #1b3820;
@@ -624,10 +612,11 @@ const handleLogout = () => {
 }
 
 .page-btn.active {
-  background-color: #2e5936; /* สีเขียวเข้มเมื่อเลือก */
+  background-color: #2e5936;
   color: white;
   border-color: #2e5936;
-  box-shadow: 0 4px 10px rgba(46, 89, 54, 0.3);
+  transform: scale(1.1);
+  box-shadow: 0 4px 8px rgba(46, 89, 54, 0.2);
 }
 
 .page-btn:disabled {
@@ -643,10 +632,8 @@ const handleLogout = () => {
   color: black;
 }
 
-/* FAB - Floating Action Button */
+/* FAB */
 .fab {
-  /* ✅ แก้ไข: ใช้ absolute เพื่อให้เกาะอยู่ใน .main-content (ที่มี position: relative) */
-  /* แทนที่จะใช้ fixed ซึ่งจะเกาะหน้าจอ Browser จนหลุดขอบ */
   position: absolute;
   bottom: 30px;
   right: 30px;
@@ -665,6 +652,7 @@ const handleLogout = () => {
   transition: 0.3s;
   z-index: 99;
 }
+
 .fab:hover {
   transform: scale(1.1);
 }
@@ -675,28 +663,35 @@ const handleLogout = () => {
     flex-direction: column;
     margin: 10px auto;
   }
+
   .sidebar {
     width: 100%;
   }
+
   .nav-menu {
     flex-direction: row;
     flex-wrap: wrap;
   }
+
   .menu-btn {
     flex: 1;
     min-width: 45%;
   }
+
   .fab {
     bottom: 20px;
     right: 20px;
   }
+
   .report-card {
     flex-direction: column;
   }
+
   .report-img {
     width: 100%;
     height: 150px;
   }
+
   .report-meta {
     text-align: left;
     flex-direction: row;
