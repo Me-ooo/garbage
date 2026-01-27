@@ -1,23 +1,23 @@
 <template>
   <div class="reportpage-container">
     <header class="header">
-      <div class="user-profile">
-        <img src="/admin-profile.png" alt="User Avatar" @error="$event.target.src='https://placehold.co/40x40'">
+      <div 
+        class="user-profile" 
+        @click="$router.push('/profile')"
+        style="cursor: pointer;" 
+        title="แก้ไขโปรไฟล์"
+      >
+        <img 
+          :src="userImage" 
+          alt="User Avatar" 
+          @error="$event.target.src='https://placehold.co/40x40?text=User'"
+        >
         <span>สวัสดีคุณ {{ userName }}</span>
       </div>
       <button class="logout-btn" @click="handleLogout">
         ออกจากระบบ
       </button>
     </header>
-
-    <div class="banners-section">
-      <div class="banner-small">
-        <img src="/admin-sidebar.png" alt="Small Banner" @error="$event.target.src='https://placehold.co/180x100'">
-      </div>
-      <div class="banner-large">
-        <img src="/admin-banner.png" alt="Large Banner" @error="$event.target.src='https://placehold.co/600x150'">
-      </div>
-    </div>
 
     <div class="container">
       <aside class="sidebar">
@@ -26,7 +26,6 @@
             v-for="menu in menuItems" 
             :key="menu.id"
             class="menu-btn"
-            :class="{ 'admin-btn': menu.id === 'admin' }"
             @click="handleMenuClick(menu.id)"
           >
             {{ menu.label }}
@@ -156,11 +155,10 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue' // ✅ เพิ่ม computed
 import { useRouter } from 'vue-router'
 import axios from 'axios'
 import L from 'leaflet'
-// นำเข้า CSS ของ Leaflet เพื่อให้แผนที่แสดงผลถูกต้อง
 import 'leaflet/dist/leaflet.css'
 
 const router = useRouter()
@@ -175,52 +173,49 @@ const isLoading = ref(false)
 const successMessage = ref('')
 const errorMessage = ref('')
 
+// ✅ ตัดเมนู Admin และ Status ออก
 const menuItems = [
   { id: 'home', label: 'หน้าหลัก' },
-  { id: 'report', label: 'แจ้งปัญหา' },
-  { id: 'status', label: 'ติดตามสถานะ' },
-  { id: 'admin', label: 'Admin Dashboard' }
+  { id: 'report', label: 'แจ้งปัญหา' }
 ]
 
 const formData = ref({
   category: '',
   title: '',
-  latitude: 13.7563, // ค่า Default กรุงเทพฯ
+  latitude: 13.7563,
   longitude: 100.5018,
   description: '',
   contact: '',
   image: null
 })
 
-// เริ่มต้นทำงาน
+// ✅ Computed Property ดึงรูปโปรไฟล์ (เหมือนหน้า Home)
+const userImage = computed(() => {
+  const userStr = localStorage.getItem('user');
+  if (userStr) {
+    const user = JSON.parse(userStr);
+    return user.image_url ? `http://localhost:3000${user.image_url}` : '/admin-profile.png';
+  }
+  return '/admin-profile.png';
+});
+
 onMounted(() => {
-  // 1. ดึงชื่อ User จาก Login
   const userStr = localStorage.getItem('user');
   if (userStr) {
     const user = JSON.parse(userStr);
     userName.value = user.fullname || user.username || 'Guest';
   }
-
-  // 2. โหลดแผนที่
   initializeMap()
 })
 
 const initializeMap = () => {
   if (!mapContainer.value) return
-
-  // สร้างแผนที่
   map.value = L.map(mapContainer.value).setView([formData.value.latitude, formData.value.longitude], 13)
-
-  // ใส่ Layer แผนที่ถนน
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     attribution: '© OpenStreetMap contributors',
     maxZoom: 19
   }).addTo(map.value)
-
-  // ปักหมุดเริ่มต้น
   addMarker(formData.value.latitude, formData.value.longitude)
-
-  // ดัก event คลิกแผนที่เพื่อย้ายหมุด
   map.value.on('click', (e) => {
     const { lat, lng } = e.latlng
     addMarker(lat, lng)
@@ -233,8 +228,6 @@ const addMarker = (lat, lng) => {
   if (marker.value) {
     map.value.removeLayer(marker.value)
   }
-  
-  // สร้าง Icon หมุด (ใช้ Link CDN หรือ local ก็ได้)
   const defaultIcon = L.icon({
     iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
     shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
@@ -242,7 +235,6 @@ const addMarker = (lat, lng) => {
     iconAnchor: [12, 41],
     popupAnchor: [1, -34]
   })
-
   marker.value = L.marker([lat, lng], { icon: defaultIcon }).addTo(map.value)
   marker.value.bindPopup(`<b>ตำแหน่งที่เลือก</b><br/>Lat: ${lat.toFixed(6)}<br/>Lng: ${lng.toFixed(6)}`).openPopup()
 }
@@ -256,11 +248,8 @@ const handleImageUpload = (event) => {
     if (!file.type.startsWith('image/')) {
       alert('โปรดเลือกไฟล์รูปภาพ'); return
     }
-
     fileName.value = file.name
-    formData.value.image = file // เก็บไฟล์จริงลงตัวแปร
-
-    // แสดง Preview
+    formData.value.image = file
     const reader = new FileReader()
     reader.onload = (e) => {
       uploadedImage.value = e.target.result
@@ -278,7 +267,6 @@ const removeImage = () => {
 }
 
 const handleSubmit = async () => {
-  // Validate
   if (!formData.value.category || !formData.value.title || !formData.value.contact) {
     errorMessage.value = 'กรุณากรอกข้อมูลให้ครบถ้วน (ประเภท, หัวข้อ, เบอร์โทร)'
     return
@@ -292,7 +280,6 @@ const handleSubmit = async () => {
   isLoading.value = true
 
   try {
-    // 1. เตรียม FormData
     const data = new FormData()
     data.append('category', formData.value.category)
     data.append('title', formData.value.title)
@@ -300,27 +287,25 @@ const handleSubmit = async () => {
     data.append('latitude', formData.value.latitude)
     data.append('longitude', formData.value.longitude)
     data.append('contact', formData.value.contact)
-    data.append('image', formData.value.image) // ส่งไฟล์ภาพ
+    data.append('image', formData.value.image)
 
-    // 2. ดึง User ID จาก LocalStorage (ถ้ามี)
     const userStr = localStorage.getItem('user')
     if (userStr) {
       const user = JSON.parse(userStr)
       if (user.id) data.append('user_id', user.id)
     }
 
-    // 3. ยิง API (ใช้ Axios)
     const token = localStorage.getItem('token')
     await axios.post('http://localhost:3000/api/reports', data, {
       headers: {
-        'Authorization': `Bearer ${token}`, // ส่ง Token ไปด้วย
+        'Authorization': `Bearer ${token}`,
         'Content-Type': 'multipart/form-data'
       }
     })
 
     successMessage.value = '✓ แจ้งปัญหาเรียบร้อยแล้ว!'
     setTimeout(() => {
-      router.push('/') // กลับหน้าแรก
+      router.push('/')
     }, 1500)
 
   } catch (error) {
@@ -340,7 +325,6 @@ const handleCancel = () => {
 const handleMenuClick = (menuId) => {
   if (menuId === 'home') router.push('/')
   else if (menuId === 'report') router.push('/reportpage')
-  else if (menuId === 'admin') router.push('/admin')
 }
 
 const handleLogout = () => {
@@ -352,7 +336,6 @@ const handleLogout = () => {
 </script>
 
 <style scoped>
-/* ลบ :root ออก แล้วใส่สีตรงๆ เพื่อความชัวร์ */
 * {
   box-sizing: border-box;
 }
@@ -371,7 +354,7 @@ const handleLogout = () => {
 
 /* Header */
 .header {
-  background-color: #2e5936; /* ใส่สีเขียวเข้มตรงๆ */
+  background-color: #2e5936;
   color: white;
   padding: 15px 20px;
   display: flex;
@@ -384,6 +367,11 @@ const handleLogout = () => {
   display: flex;
   align-items: center;
   gap: 10px;
+  transition: opacity 0.2s;
+}
+
+.user-profile:hover {
+  opacity: 0.8;
 }
 
 .user-profile img {
@@ -391,6 +379,7 @@ const handleLogout = () => {
   height: 40px;
   border-radius: 50%;
   border: 2px solid white;
+  object-fit: cover;
 }
 
 .logout-btn {
@@ -405,18 +394,6 @@ const handleLogout = () => {
 }
 .logout-btn:hover { background-color: #ccc; }
 
-/* Banners */
-.banners-section {
-  display: flex;
-  gap: 15px;
-  padding: 15px 20px;
-  align-items: center;
-}
-.banner-small { flex-shrink: 0; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 6px rgba(0,0,0,0.1); }
-.banner-small img { width: 180px; height: 100px; object-fit: cover; display: block; }
-.banner-large { flex: 1; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 6px rgba(0,0,0,0.1); }
-.banner-large img { width: 100%; height: 100px; object-fit: cover; display: block; }
-
 /* Container */
 .container {
   display: flex;
@@ -425,7 +402,7 @@ const handleLogout = () => {
   margin: 0 auto;
   width: 100%;
   gap: 20px;
-  padding: 0 20px 20px;
+  padding: 20px; /* เพิ่ม padding ด้านบนเพราะลบ banner ออกแล้ว */
   overflow-y: auto;
 }
 
@@ -452,7 +429,6 @@ const handleLogout = () => {
   font-family: 'Kanit', sans-serif;
 }
 .menu-btn:hover { background-color: #e0e0e0; }
-.admin-btn { background-color: #2e5936; color: white; border: none; margin-top: auto; }
 
 /* Main Content */
 .main-content {
@@ -468,7 +444,7 @@ const handleLogout = () => {
 .content-title { margin-bottom: 20px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
 .content-title h2 { margin: 0; color: #333; }
 .upload-image-link {
-  background-color: #5c9454; /* สีเขียวอ่อน */
+  background-color: #5c9454;
   color: white;
   border: none;
   padding: 10px 20px;
@@ -518,9 +494,8 @@ const handleLogout = () => {
   transition: 0.2s;
 }
 
-/* ✅ แก้ตรงนี้: ใส่สีให้ปุ่ม Submit ชัดเจน */
 .btn-submit {
-  background-color: #2e5936; /* สีเขียว */
+  background-color: #2e5936;
   color: white;
   border: 2px solid #2e5936;
 }
@@ -548,8 +523,6 @@ const handleLogout = () => {
 
 /* Responsive */
 @media (max-width: 768px) {
-  .banners-section { flex-direction: column; }
-  .banner-small, .banner-large { width: 100%; }
   .container { flex-direction: column; }
   .sidebar { width: 100%; }
   .nav-menu { flex-direction: row; flex-wrap: wrap; }

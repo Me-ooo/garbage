@@ -32,7 +32,6 @@
             v-for="menu in menuItems"
             :key="menu.id"
             class="menu-btn"
-            :class="{ 'admin-btn': menu.id === 'admin' }"
             @click="handleMenuClick(menu.id)"
           >
             {{ menu.label }}
@@ -84,13 +83,21 @@
               "
               :alt="report.title"
               class="report-img"
+              @click="viewReportDetails(report)"
+              style="cursor: pointer;"
               @error="$event.target.src = 'https://placehold.co/100x100?text=No+Image'"
             />
 
             <div class="report-info">
-              <span class="status-badge" :class="getStatusClass(report.status)">
-                {{ getStatusLabel(report.status) }}
-              </span>
+              <div class="report-header">
+                <span class="status-badge" :class="getStatusClass(report.status)">
+                  {{ getStatusLabel(report.status) }}
+                </span>
+                
+                <button class="btn-view" @click="viewReportDetails(report)" title="ดูรายละเอียด">
+                  <i class="bi bi-eye-fill"></i>
+                </button>
+              </div>
 
               <h3 class="report-title">{{ report.title }}</h3>
               <p class="report-desc">{{ report.description }}</p>
@@ -146,6 +153,7 @@
 import { ref, onMounted, computed } from "vue";
 import { useRouter } from "vue-router";
 import axios from "axios";
+import Swal from "sweetalert2";
 
 const router = useRouter();
 const userName = ref("Guest");
@@ -154,23 +162,19 @@ const loading = ref(false);
 const searchText = ref("");
 const selectedCategory = ref("all");
 
-// --- ตัวแปรสำหรับ Pagination ---
 const currentPage = ref(1);
 const totalPages = ref(1);
 
+// ✅ แก้ไข: ลบเมนู "ติดตามสถานะ" และ "Admin" ออก เหลือแค่ 2 อย่าง
 const menuItems = [
   { id: "home", label: "หน้าหลัก" },
-  { id: "report", label: "แจ้งปัญหา" },
-  { id: "status", label: "ติดตามสถานะ" },
-  { id: "admin", label: "Admin Dashboard" },
+  { id: "report", label: "แจ้งปัญหา" }
 ];
 
-// Computed Property สำหรับดึงรูปโปรไฟล์
 const userImage = computed(() => {
   const userStr = localStorage.getItem('user');
   if (userStr) {
     const user = JSON.parse(userStr);
-    // ถ้ามีรูปใน DB ให้ใช้รูปนั้น ถ้าไม่มีให้ใช้รูป Default
     return user.image_url ? `http://localhost:3000${user.image_url}` : '/admin-profile.png';
   }
   return '/admin-profile.png';
@@ -193,7 +197,7 @@ const fetchReports = async (page = 1) => {
       headers: { Authorization: `Bearer ${token}` },
       params: {
         page: page,
-        limit: 2, // 🔴 ปรับเป็น 2 เพื่อเทสหน้า (เสร็จแล้วเปลี่ยนเป็น 6)
+        limit: 6,
         search: searchText.value,
         status: selectedCategory.value,
       },
@@ -212,6 +216,26 @@ const fetchReports = async (page = 1) => {
   }
 };
 
+const viewReportDetails = (report) => {
+  Swal.fire({
+    title: `<strong>${report.title}</strong>`,
+    html: `
+      <div style="text-align: left; font-size: 0.95rem;">
+        <img src="${report.image_url ? 'http://localhost:3000'+report.image_url : ''}" 
+             style="width:100%; max-height:250px; object-fit:cover; border-radius:8px; margin-bottom:15px; border:1px solid #ddd;">
+        
+        <p><strong>รายละเอียด:</strong> <br>${report.description}</p>
+        <p><strong>สถานะ:</strong> ${getStatusLabel(report.status)}</p>
+        <p><strong>วันที่แจ้ง:</strong> ${formatDate(report.created_at)} เวลา ${formatTime(report.created_at)}</p>
+        <p><strong>พิกัด:</strong> ${report.latitude || '-'}, ${report.longitude || '-'}</p>
+      </div>
+    `,
+    confirmButtonText: 'ปิด',
+    confirmButtonColor: '#2e5936',
+    showCloseButton: true
+  });
+};
+
 const handleFilterChange = () => {
   currentPage.value = 1;
   fetchReports(1);
@@ -223,7 +247,6 @@ const changePage = (page) => {
   }
 };
 
-// Helper Functions
 const getStatusClass = (status) => {
   if (status === "pending") return "status-pending";
   if (status === "in_progress") return "status-progress";
@@ -254,11 +277,13 @@ const formatTime = (dateString) => {
 const openNewReport = () => {
   router.push("/reportpage");
 };
+
+// ✅ ปรับปรุง handleMenuClick ให้เหลือแค่เมนูที่มีอยู่
 const handleMenuClick = (menuId) => {
   if (menuId === "home") fetchReports(1);
   else if (menuId === "report") router.push("/reportpage");
-  else if (menuId === "admin") router.push("/admin");
 };
+
 const handleLogout = () => {
   if (confirm("ออกจากระบบ?")) {
     localStorage.clear();
@@ -396,16 +421,6 @@ const handleLogout = () => {
   background-color: #e0e0e0;
 }
 
-.admin-btn {
-  background-color: var(--primary-green);
-  color: white;
-  border: none;
-  margin-top: auto;
-}
-.admin-btn:hover {
-  background-color: #1b3820;
-}
-
 /* Main Content */
 .main-content {
   flex-grow: 1;
@@ -413,7 +428,8 @@ const handleLogout = () => {
   border-radius: 15px;
   padding: 20px;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-  position: relative;
+  /* ✅ เพิ่ม position relative เพื่อให้ปุ่ม FAB อ้างอิงจากกรอบนี้ */
+  position: relative; 
   display: flex;
   flex-direction: column;
   overflow-y: auto;
@@ -435,30 +451,42 @@ const handleLogout = () => {
 
 /* Search Bar */
 .search-bar {
-  background-color: var(--secondary-green);
+  background-color: white; /* เปลี่ยนพื้นหลังเป็นสีขาวเพื่อให้กรอบชัด */
   padding: 10px;
-  border-radius: 10px;
+  border-radius: 12px; /* ปรับความโค้งให้สวยงาม */
   display: flex;
   gap: 10px;
   margin-bottom: 20px;
+  border: 1px solid #ddd; /* เพิ่มเส้นขอบสีเทาอ่อน */
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
 }
 
 .search-input {
   flex-grow: 1;
-  padding: 8px 15px;
-  border-radius: 5px;
-  border: none;
+  padding: 10px 15px;
+  border-radius: 8px; /* ปรับความโค้ง input */
+  border: 1px solid #eee; /* เส้นขอบบางๆ */
   outline: none;
   font-family: "Kanit", sans-serif;
+  background-color: #f9f9f9; /* สีพื้นหลัง input อ่อนๆ */
+  transition: border-color 0.2s;
+}
+.search-input:focus {
+  border-color: #2e5936; /* เปลี่ยนสีขอบเมื่อกดพิมพ์ */
+  background-color: white;
 }
 
 .category-select {
-  padding: 8px 15px;
-  border-radius: 20px;
-  border: none;
-  background-color: white;
+ padding: 10px 15px;
+  border-radius: 8px; /* ปรับความโค้ง select */
+  border: 1px solid #eee;
+  background-color: #f9f9f9;
   cursor: pointer;
   font-family: "Kanit", sans-serif;
+  transition: border-color 0.2s;
+}
+.category-select:focus {
+  border-color: #2e5936;
 }
 
 /* Report List */
@@ -500,6 +528,13 @@ const handleLogout = () => {
   flex-grow: 1;
 }
 
+.report-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 5px;
+}
+
 .report-title {
   font-size: 1.2rem;
   font-weight: bold;
@@ -523,21 +558,11 @@ const handleLogout = () => {
   border-radius: 12px;
   font-size: 0.8rem;
   font-weight: bold;
-  margin-bottom: 5px;
 }
 
-.status-pending {
-  background-color: #fff3cd;
-  color: #856404;
-}
-.status-progress {
-  background-color: #cff4fc;
-  color: #055160;
-}
-.status-done {
-  background-color: #d1e7dd;
-  color: #0f5132;
-}
+.status-pending { background-color: #fff3cd; color: #856404; }
+.status-progress { background-color: #cff4fc; color: #055160; }
+.status-done { background-color: #d1e7dd; color: #0f5132; }
 
 .report-meta {
   text-align: right;
@@ -549,12 +574,27 @@ const handleLogout = () => {
   min-width: 80px;
 }
 
+.btn-view {
+  background: none;
+  border: none;
+  color: #2e5936;
+  font-size: 1.2rem;
+  cursor: pointer;
+  transition: 0.2s;
+  padding: 0;
+  margin-left: 10px;
+}
+.btn-view:hover {
+  transform: scale(1.1);
+  color: #1b3820;
+}
+
 /* Pagination */
 .pagination-container {
   display: flex;
   justify-content: center;
   align-items: center;
-  gap: 10px; /* เพิ่มช่องว่าง */
+  gap: 10px;
   margin-top: 20px;
   padding: 10px;
   padding-bottom: 20px;
@@ -563,10 +603,10 @@ const handleLogout = () => {
 .page-btn {
   width: 40px;
   height: 40px;
-  border-radius: 50%; /* กลม */
+  border-radius: 50%;
   border: 1px solid #ddd;
   background: white;
-  color: black; /* ดำ */
+  color: black;
   cursor: pointer;
   font-family: "Kanit", sans-serif;
   font-weight: 600;
@@ -585,7 +625,7 @@ const handleLogout = () => {
 
 .page-btn.active {
   background-color: #d1e7dd;
-  border: 2px solid var(--primary-green); /* ขอบเขียวหนา */
+  border: 2px solid var(--primary-green);
   color: black;
   font-weight: 800;
   transform: scale(1.1);
@@ -605,9 +645,11 @@ const handleLogout = () => {
   color: black;
 }
 
-/* FAB */
+/* FAB - Floating Action Button */
 .fab {
-  position: fixed;
+  /* ✅ แก้ไข: ใช้ absolute เพื่อให้เกาะอยู่ใน .main-content (ที่มี position: relative) */
+  /* แทนที่จะใช้ fixed ซึ่งจะเกาะหน้าจอ Browser จนหลุดขอบ */
+  position: absolute;
   bottom: 30px;
   right: 30px;
   width: 60px;

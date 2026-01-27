@@ -1,913 +1,444 @@
 <template>
-  <div class="reportpage-container">
+  <div class="admin-container">
     <header class="header">
-      <div class="user-profile">
-        <img src="https://placehold.co/40x40/orange/white?text=User" alt="User Avatar">
-        <span>สวัสดีคุณ {{ userName }}</span>
+      <div 
+        class="user-profile" 
+        @click="$router.push('/profile')" 
+        style="cursor: pointer;"
+        title="แก้ไขโปรไฟล์"
+      >
+        <img 
+          :src="userImage" 
+          alt="Admin Avatar" 
+          class="profile-img" 
+          @error="$event.target.src='https://placehold.co/40x40?text=Admin'"
+        >
+        <span>{{ userName }}</span>
       </div>
-      <button class="logout-btn" @click="handleLogout">
+      <button class="logout-btn" @click="logout">
         ออกจากระบบ
       </button>
     </header>
 
-    <div class="banners-section">
-      <div class="banner-small">
-        <img src="https://placehold.co/180x100/81c784/ffffff?text=Garbage+Project" alt="Small Banner">
-      </div>
-      <div class="banner-large">
-        <img src="https://placehold.co/600x150/4caf50/ffffff?text=Community+Cleanliness+Campaign" alt="Large Banner">
-      </div>
-    </div>
-
     <div class="container">
       <aside class="sidebar">
+        <div class="banner-box">
+          <img src="/admin-sidebar.png" alt="Admin Banner" @error="$event.target.src='https://placehold.co/250x150'">
+        </div>
+        
         <div class="nav-menu">
           <button 
-            v-for="menu in menuItems" 
-            :key="menu.id"
             class="menu-btn"
-            :class="{ 'admin-btn': menu.id === 'admin' }"
-            @click="handleMenuClick(menu.id)"
+            :class="{ 'active-btn': activeTab === 'reports' }"
+            @click="activeTab = 'reports'"
           >
-            {{ menu.label }}
+            รายการปัญหา
+          </button>
+          
+          <button 
+            class="menu-btn"
+            :class="{ 'active-btn': activeTab === 'users' }"
+            @click="activeTab = 'users'"
+          >
+            รายชื่อผู้ใช้
+          </button>
+
+          <button class="menu-btn back-home-btn" @click="goToHome">
+            กลับหน้าหลัก
           </button>
         </div>
       </aside>
 
       <main class="main-content">
-        <div class="content-title">
-          <h2>แจ้งเรื่อง</h2>
-          <button class="upload-image-link" @click="handleNavigateToImage">
-            <i class="bi bi-cloud-arrow-up"></i>
-            อัพโหลดไฟล์ภาพ
-          </button>
-        </div>
-
-        <div class="form-container">
-          <div class="upload-section">
-            <div class="upload-box" @click="$refs.fileInput.click()" :class="{ 'has-image': uploadedImage }">
-              <div v-if="uploadedImage" class="uploaded-image">
-                <img :src="uploadedImage" :alt="fileName">
-                <button type="button" class="remove-btn" @click.stop="removeImage">✕</button>
-              </div>
-              <div v-else class="upload-placeholder">
-                <svg class="upload-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                  <polyline points="17 8 12 3 7 8"></polyline>
-                  <line x1="12" y1="3" x2="12" y2="15"></line>
-                </svg>
-                <p>อัพโหลดรูปภาพ</p>
-                <small>กดที่นี่เพื่ออัพโหลดรูป</small>
-              </div>
-            </div>
-            <input
-              ref="fileInput"
-              type="file"
-              accept="image/*"
-              style="display: none"
-              @change="handleImageUpload"
-            >
-          </div>
-
-          <div class="form-fields">
-            <div class="form-group">
-              <label for="category">ประเภทปัญหา:</label>
-              <select v-model="formData.category" id="category" class="form-control">
-                <option value="">-- เลือกประเภทปัญหา --</option>
-                <option value="ถังขยะไม่เพียงพอ">ถังขยะไม่เพียงพอ</option>
-                <option value="เจ้าหน้าที่ไม่มาเก็บขยะ">เจ้าหน้าที่ไม่มาเก็บขยะ</option>
-                <option value="ขยะเน่าเสีย">ขยะเน่าเสีย</option>
-                <option value="ขยะอันตราย">ขยะอันตราย</option>
-              </select>
-            </div>
-
-            <div class="form-group">
-              <label for="title">หัวข้อ:</label>
-              <input
-                v-model="formData.title"
-                type="text"
-                id="title"
-                class="form-control"
-                placeholder="กรอกหัวข้อการแจ้งปัญหา"
-              >
-            </div>
-
-            <div class="form-group">
-              <label for="map">📍 สถานที่ (ปักหมุด GPS):</label>
-              <div id="map" ref="mapContainer" class="map-container"></div>
-              <div class="location-info">
-                <p>ละติจูด: <strong>{{ formData.latitude }}</strong></p>
-                <p>ลองจิจูด: <strong>{{ formData.longitude }}</strong></p>
-              </div>
-            </div>
-
-            <div class="form-group">
-              <label for="description">รายละเอียด:</label>
-              <textarea
-                v-model="formData.description"
-                id="description"
-                class="form-control"
-                placeholder="กรอกรายละเอียดการแจ้งปัญหา"
-                rows="5"
-              ></textarea>
-            </div>
-
-            <div class="form-group">
-              <label for="contact">เบอร์โทรศัพท์:</label>
-              <input
-                v-model="formData.contact"
-                type="tel"
-                id="contact"
-                class="form-control"
-                placeholder="กรอกเบอร์โทรศัพท์"
-              >
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-icon green-icon"><i class="bi bi-people-fill"></i></div>
+            <div class="stat-info">
+              <p class="stat-label">ผู้ใช้งานทั้งหมด</p>
+              <h3>{{ users.length }} <small>คน</small></h3>
             </div>
           </div>
-
-          <div v-if="successMessage" class="alert alert-success mt-3">
-            <i class="bi bi-check-circle"></i>
-            {{ successMessage }}
+          <div class="stat-card">
+            <div class="stat-icon blue-icon"><i class="bi bi-file-earmark-text-fill"></i></div>
+            <div class="stat-info">
+              <p class="stat-label">เรื่องร้องเรียนทั้งหมด</p>
+              <h3>{{ reports.length }} <small>รายการ</small></h3>
+            </div>
           </div>
-
-          <div v-if="errorMessage" class="alert alert-danger mt-3">
-            <i class="bi bi-exclamation-circle"></i>
-            {{ errorMessage }}
-          </div>
-
-          <div class="button-group">
-            <button
-              @click="handleSubmit"
-              :disabled="isLoading"
-              class="btn btn-submit"
-            >
-              <span v-if="!isLoading">บันทึกข้อมูล</span>
-              <span v-else>
-                <span class="spinner-border spinner-border-sm me-2"></span>
-                กำลังบันทึก...
-              </span>
-            </button>
-            <button
-              @click="handleCancel"
-              class="btn btn-cancel"
-            >
-              ยกเลิก
-            </button>
+          <div class="stat-card">
+            <div class="stat-icon yellow-icon"><i class="bi bi-clock-history"></i></div>
+            <div class="stat-info">
+              <p class="stat-label">รอการตรวจสอบ</p>
+              <h3>{{ pendingCount }} <small>รายการ</small></h3>
+            </div>
           </div>
         </div>
+
+        <div class="content-header">
+          <h2>{{ activeTab === 'reports' ? 'จัดการรายการปัญหา' : 'จัดการรายชื่อผู้ใช้' }}</h2>
+        </div>
+
+        <div class="search-bar">
+          <input
+            v-model="searchText"
+            type="text"
+            class="search-input"
+            :placeholder="activeTab === 'reports' ? 'ค้นหาหัวข้อ, รายละเอียด...' : 'ค้นหาชื่อ, อีเมล...'"
+          />
+          <select 
+            v-if="activeTab === 'reports'" 
+            v-model="filterStatus" 
+            class="category-select"
+          >
+            <option value="all">สถานะ: ทั้งหมด</option>
+            <option value="pending">⏳ รอดำเนินการ</option>
+            <option value="in_progress">🔧 กำลังแก้ไข</option>
+            <option value="resolved">✅ แก้ไขแล้ว</option>
+          </select>
+        </div>
+
+        <div v-if="loading" class="text-center mt-5">
+          <div class="spinner-border text-success" role="status"></div>
+        </div>
+
+        <div v-else-if="activeTab === 'reports'" class="table-responsive">
+          <table class="custom-table">
+            <thead>
+              <tr>
+                <th width="10%">รูปภาพ</th>
+                <th width="20%">หัวข้อ</th>
+                <th width="15%">ผู้แจ้ง</th>
+                <th width="15%">วันที่</th>
+                <th width="15%">สถานะ</th>
+                <th width="25%">จัดการ</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="report in filteredReports" :key="report.id">
+                <td>
+                  <img 
+                    :src="report.image_url ? `http://localhost:3000${report.image_url}` : '/no-image.png'" 
+                    class="table-img"
+                    @error="$event.target.src='https://placehold.co/50x50?text=No+Img'"
+                  >
+                </td>
+                <td class="fw-bold">{{ report.title }}</td>
+                <td>{{ report.username || 'ไม่ระบุ' }}</td>
+                <td>{{ formatDate(report.created_at) }}</td>
+                <td>
+                  <select 
+                    class="status-select"
+                    :class="getStatusClass(report.status)"
+                    v-model="report.status"
+                    @change="updateStatus(report.id, report.status)"
+                  >
+                    <option value="pending">⏳ รอดำเนินการ</option>
+                    <option value="in_progress">🔧 กำลังแก้ไข</option>
+                    <option value="resolved">✅ แก้ไขแล้ว</option>
+                  </select>
+                </td>
+                <td>
+                  <div class="action-buttons">
+                    <button class="btn-icon view" @click="viewAndForward(report)" title="ดูรายละเอียด/ส่งต่อ">
+                      <i class="bi bi-eye-fill"></i>
+                    </button>
+                    <button class="btn-icon delete" @click="deleteReport(report.id)" title="ลบรายการ">
+                      <i class="bi bi-trash-fill"></i>
+                    </button>
+                  </div>
+                </td>
+              </tr>
+              <tr v-if="filteredReports.length === 0">
+                <td colspan="6" class="text-center text-muted py-4">ไม่พบข้อมูลที่ค้นหา</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div v-else-if="activeTab === 'users'" class="table-responsive">
+          <table class="custom-table">
+            <thead>
+              <tr>
+                <th>รูป</th>
+                <th>ชื่อผู้ใช้</th>
+                <th>อีเมล</th>
+                <th>เบอร์โทรศัพท์</th>
+                <th>สิทธิ์</th>
+                <th class="text-center">จัดการ</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="user in filteredUsers" :key="user.id">
+                <td>
+                  <img 
+                    :src="user.image_url ? `http://localhost:3000${user.image_url}` : '/admin-profile.png'" 
+                    class="table-img rounded-circle"
+                    @error="$event.target.src='https://placehold.co/40x40?text=User'"
+                  >
+                </td>
+                <td class="fw-bold">{{ user.fullname || user.username }}</td>
+                <td>{{ user.email }}</td>
+                <td>{{ user.phone || '-' }}</td>
+                <td>
+                  <span class="badge rounded-pill" :class="user.role === 'admin' ? 'bg-danger' : 'bg-success'">
+                    {{ user.role }}
+                  </span>
+                </td>
+                <td class="text-center">
+                  <button 
+                    v-if="user.role !== 'admin'" 
+                    class="btn-icon delete" 
+                    @click="deleteUser(user.id)"
+                    title="ลบผู้ใช้"
+                  >
+                    <i class="bi bi-trash-fill"></i>
+                  </button>
+                </td>
+              </tr>
+              <tr v-if="filteredUsers.length === 0">
+                <td colspan="6" class="text-center text-muted py-4">ไม่พบรายชื่อผู้ใช้</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
       </main>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
-import axios from 'axios' // ✅ 1. ใช้ axios แทน fetch
-import L from 'leaflet'
+import { ref, onMounted, watch, computed } from "vue";
+import axios from "axios";
+import Swal from "sweetalert2";
+import { useRouter } from "vue-router";
 
-const router = useRouter()
+const router = useRouter();
+const activeTab = ref("reports");
+const reports = ref([]);
+const users = ref([]);
+const loading = ref(false);
+const userName = ref("Admin");
 
-const userName = ref('โจโจ้')
-const fileInput = ref(null)
-const mapContainer = ref(null)
-const map = ref(null)
-const marker = ref(null)
-const uploadedImage = ref(null)
-const fileName = ref('')
-const isLoading = ref(false)
-const successMessage = ref('')
-const errorMessage = ref('')
+// ✅ ตัวแปรสำหรับค้นหา
+const searchText = ref("");
+const filterStatus = ref("all");
 
-const menuItems = [
-  { id: 'home', label: 'หน้าหลัก' },
-  { id: 'report', label: 'แจ้งปัญหา' },
-  { id: 'status', label: 'ติดตามสถานะ' },
-  { id: 'admin', label: 'Admin Dashboard' }
-]
-
-const formData = ref({
-  category: '',
-  title: '',
-  latitude: 13.7563,
-  longitude: 100.5018,
-  description: '',
-  contact: '',
-  image: null
-})
-
-// ดึงชื่อ User จาก LocalStorage (ถ้ามี)
-onMounted(() => {
-  const user = JSON.parse(localStorage.getItem('user') || '{}');
-  if (user.fullname || user.name) {
-    userName.value = user.fullname || user.name;
+const userImage = computed(() => {
+  const userStr = localStorage.getItem('user');
+  if (userStr) {
+    const user = JSON.parse(userStr);
+    return user.image_url ? `http://localhost:3000${user.image_url}` : '/admin-profile.png';
   }
-  initializeMap()
-})
+  return '/admin-profile.png';
+});
 
-const initializeMap = () => {
-  if (!mapContainer.value) return
+const pendingCount = computed(() => reports.value.filter(r => r.status === 'pending').length);
 
-  map.value = L.map(mapContainer.value).setView([formData.value.latitude, formData.value.longitude], 13)
-
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    attribution: '© OpenStreetMap contributors',
-    maxZoom: 19
-  }).addTo(map.value)
-
-  addMarker(formData.value.latitude, formData.value.longitude)
-
-  map.value.on('click', (e) => {
-    const { lat, lng } = e.latlng
-    addMarker(lat, lng)
-    formData.value.latitude = lat.toFixed(6)
-    formData.value.longitude = lng.toFixed(6)
-  })
-}
-
-const addMarker = (lat, lng) => {
-  if (marker.value) {
-    map.value.removeLayer(marker.value)
-  }
-  
-  marker.value = L.marker([lat, lng], {
-    icon: L.icon({
-      iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon.png',
-      iconSize: [25, 41],
-      iconAnchor: [12, 41],
-      popupAnchor: [1, -34]
-    })
-  }).addTo(map.value)
-
-  marker.value.bindPopup(`<b>ตำแหน่ง GPS</b><br/>Lat: ${lat.toFixed(6)}<br/>Lng: ${lng.toFixed(6)}`)
-}
-
-const handleImageUpload = (event) => {
-  const file = event.target.files[0]
-  if (file) {
-    if (file.size > 5 * 1024 * 1024) {
-      errorMessage.value = 'ขนาดไฟล์ต้องไม่เกิน 5 MB'
-      setTimeout(() => { errorMessage.value = '' }, 3000)
-      return
-    }
-
-    if (!file.type.startsWith('image/')) {
-      errorMessage.value = 'โปรดเลือกไฟล์รูปภาพ'
-      setTimeout(() => { errorMessage.value = '' }, 3000)
-      return
-    }
-
-    fileName.value = file.name
-    formData.value.image = file
-
-    const reader = new FileReader()
-    reader.onload = (e) => {
-      uploadedImage.value = e.target.result
-    }
-    reader.readAsDataURL(file)
-    errorMessage.value = ''
-  }
-}
-
-const removeImage = () => {
-  uploadedImage.value = null
-  fileName.value = ''
-  formData.value.image = null
-  if (fileInput.value) {
-    fileInput.value.value = ''
-  }
-}
-
-const handleSubmit = async () => {
-  // Validation
-  if (!formData.value.category) return errorMessage.value = 'กรุณาเลือกประเภทปัญหา'
-  if (!formData.value.title) return errorMessage.value = 'กรุณากรอกหัวข้อ'
-  if (!formData.value.description) return errorMessage.value = 'กรุณากรอกรายละเอียด'
-  if (!formData.value.contact) return errorMessage.value = 'กรุณากรอกเบอร์โทรศัพท์'
-  if (!uploadedImage.value) return errorMessage.value = 'กรุณาอัพโหลดรูปภาพ'
-
-  errorMessage.value = ''
-  isLoading.value = true
-
-  try {
-    // ✅ 2. เตรียมข้อมูล FormData
-    const formDataToSend = new FormData()
-    formDataToSend.append('category', formData.value.category)
-    formDataToSend.append('title', formData.value.title)
-    formDataToSend.append('latitude', formData.value.latitude)
-    formDataToSend.append('longitude', formData.value.longitude)
-    formDataToSend.append('description', formData.value.description)
-    formDataToSend.append('contact', formData.value.contact)
-    formDataToSend.append('image', formData.value.image)
-
-    // ✅ 3. ดึง Token
-    const token = localStorage.getItem('token')
-
-    // ✅ 4. ส่งด้วย axios พร้อม Token
-    await axios.post('http://localhost:3000/api/reports', formDataToSend, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-        'Authorization': `Bearer ${token}`
-      }
-    })
-
-    successMessage.value = '✓ อัพโหลดข้อมูลสำเร็จแล้ว'
+// ✅ Computed สำหรับกรองข้อมูล Reports
+const filteredReports = computed(() => {
+  return reports.value.filter(report => {
+    // 1. กรองตามสถานะ
+    const matchStatus = filterStatus.value === 'all' || report.status === filterStatus.value;
     
-    setTimeout(() => {
-      resetForm()
-      router.push('/') // กลับหน้า Home
-    }, 2000)
+    // 2. กรองตามคำค้นหา (หัวข้อ หรือ รายละเอียด)
+    const query = searchText.value.toLowerCase();
+    const matchSearch = 
+      (report.title && report.title.toLowerCase().includes(query)) || 
+      (report.description && report.description.toLowerCase().includes(query)) ||
+      (report.username && report.username.toLowerCase().includes(query));
 
-  } catch (error) {
-    console.error(error)
-    errorMessage.value = error.response?.data?.message || 'เกิดข้อผิดพลาดในการส่งข้อมูล'
-  } finally {
-    isLoading.value = false
+    return matchStatus && matchSearch;
+  });
+});
+
+// ✅ Computed สำหรับกรองข้อมูล Users
+const filteredUsers = computed(() => {
+  return users.value.filter(user => {
+    const query = searchText.value.toLowerCase();
+    return (
+      (user.fullname && user.fullname.toLowerCase().includes(query)) ||
+      (user.username && user.username.toLowerCase().includes(query)) ||
+      (user.email && user.email.toLowerCase().includes(query))
+    );
+  });
+});
+
+const getAuthConfig = () => {
+  const token = localStorage.getItem('token');
+  return { headers: { Authorization: `Bearer ${token}` } };
+};
+
+const fetchData = async () => {
+  loading.value = true;
+  try {
+    const config = getAuthConfig();
+    const [reportsRes, usersRes] = await Promise.all([
+      axios.get("http://localhost:3000/api/admin/reports", config),
+      axios.get("http://localhost:3000/api/users", config)
+    ]);
+    reports.value = reportsRes.data;
+    users.value = usersRes.data;
+  } catch (err) {
+    if (err.response && (err.response.status === 401 || err.response.status === 403)) {
+      Swal.fire({ icon: 'error', title: 'Session หมดอายุ', text: 'กรุณาเข้าสู่ระบบใหม่' });
+      localStorage.clear();
+      router.push('/login');
+    }
   }
-}
+  loading.value = false;
+};
 
-const handleCancel = () => {
-  if (confirm('คุณต้องการยกเลิกการแจ้งเรื่องใช่หรือไม่?')) {
-    resetForm()
-    router.push('/')
+const viewAndForward = (report) => {
+  Swal.fire({
+    title: `<strong>${report.title}</strong>`,
+    html: `
+      <div style="text-align: left; font-size: 0.95rem;">
+        <img src="${report.image_url ? 'http://localhost:3000'+report.image_url : ''}" 
+             style="width:100%; max-height:250px; object-fit:cover; border-radius:8px; margin-bottom:15px; border:1px solid #ddd;">
+        <p><strong>ผู้แจ้ง:</strong> ${report.username || 'ไม่ระบุ'}</p>
+        <p><strong>เบอร์โทร:</strong> ${report.contact || '-'}</p>
+        <p><strong>รายละเอียด:</strong> <br>${report.description}</p>
+        <p><strong>พิกัด:</strong> ${report.latitude}, ${report.longitude}</p>
+        <hr style="margin: 15px 0;">
+        <label style="font-weight:bold; display:block; margin-bottom:5px;">ส่งต่อไปยังหน่วยงาน:</label>
+        <select id="agency-select" class="swal2-input" style="width: 100%; margin: 0;">
+          <option value="" disabled selected>-- เลือกหน่วยงาน --</option>
+          <option value="อบต.">อบต.</option>
+          <option value="สำนักงานเขต">สำนักงานเขต</option>
+          <option value="กรมทางหลวง">กรมทางหลวง</option>
+          <option value="การไฟฟ้า">การไฟฟ้า</option>
+        </select>
+      </div>
+    `,
+    showCancelButton: true,
+    confirmButtonText: '<i class="bi bi-send"></i> ส่งเรื่อง',
+    confirmButtonColor: '#2e5936',
+    preConfirm: () => {
+      const agency = document.getElementById('agency-select').value;
+      if (!agency) Swal.showValidationMessage('กรุณาเลือกหน่วยงาน');
+      return agency;
+    }
+  }).then((result) => {
+    if (result.isConfirmed) {
+      Swal.fire({ icon: 'success', title: 'ส่งเรื่องสำเร็จ!', text: `ส่งไปยัง ${result.value} เรียบร้อย`, timer: 2000 });
+    }
+  });
+};
+
+const updateStatus = async (id, newStatus) => {
+  try {
+    await axios.put(`http://localhost:3000/api/admin/reports/${id}/status`, { status: newStatus }, getAuthConfig());
+    Swal.mixin({ toast: true, position: "top-end", showConfirmButton: false, timer: 2000 }).fire({ icon: "success", title: "อัปเดตสถานะเรียบร้อย" });
+  } catch (err) {
+    Swal.fire("Error", "ไม่สามารถอัปเดตสถานะได้", "error");
+    fetchData(); 
   }
-}
+};
 
-const handleNavigateToImage = () => {
-  router.push('/reportimage')
-}
-
-const resetForm = () => {
-  formData.value = {
-    category: '', title: '', latitude: 13.7563, longitude: 100.5018,
-    description: '', contact: '', image: null
+const deleteReport = async (id) => {
+  if (await Swal.fire({ title: "ยืนยันการลบ?", icon: "warning", showCancelButton: true, confirmButtonColor: "#d33", confirmButtonText: "ลบเลย" }).then(r => r.isConfirmed)) {
+    await axios.delete(`http://localhost:3000/api/admin/reports/${id}`, getAuthConfig());
+    fetchData();
+    Swal.fire('ลบสำเร็จ', '', 'success');
   }
-  uploadedImage.value = null
-  fileName.value = ''
-  if (fileInput.value) fileInput.value.value = ''
-}
+};
 
-// ✅ 5. ใช้ router.push แทน emit
-const handleMenuClick = (menuId) => {
-  if (menuId === 'home') {
-    router.push('/')
-  } else if (menuId === 'report') {
-    // อยู่หน้าเดิม
-  } else if (menuId === 'status') {
-    console.log('Navigate to status page')
-  } else if (menuId === 'admin') {
-    router.push('/admin')
+const deleteUser = async (id) => {
+  if (await Swal.fire({ title: "ยืนยันการลบ?", icon: "warning", showCancelButton: true, confirmButtonColor: "#d33", confirmButtonText: "ลบเลย" }).then(r => r.isConfirmed)) {
+    await axios.delete(`http://localhost:3000/api/users/${id}`, getAuthConfig());
+    fetchData();
+    Swal.fire('ลบสำเร็จ', '', 'success');
   }
-}
+};
 
-const handleLogout = () => {
-  if (confirm('คุณต้องการออกจากระบบใช่หรือไม่?')) {
-    localStorage.removeItem('token')
-    localStorage.removeItem('user')
-    router.push('/login') 
-  }
-}
+const logout = () => { if(confirm("ต้องการออกจากระบบ?")) { localStorage.clear(); router.push('/login'); } };
+const goToHome = () => router.push('/');
+const getStatusClass = (s) => ({'pending':'status-pending','in_progress':'status-progress','resolved':'status-resolved'}[s]);
+const formatDate = (d) => new Date(d).toLocaleDateString('th-TH', { year: '2-digit', month: '2-digit', day: '2-digit' });
+
+onMounted(() => {
+  const user = JSON.parse(localStorage.getItem("user") || "{}");
+  if (user.fullname) userName.value = user.fullname;
+  fetchData();
+});
 </script>
 
 <style scoped>
-/* ใช้ Style เดิมของคุณได้เลยครับ */
-:root {
-  --primary-green: #2e5936;
-  --secondary-green: #5c9454;
-  --bg-light: #e8f5e9;
-  --text-dark: #333;
-  --success-color: #66bb6a;
-  --error-color: #f44336;
-}
+:root { --primary-green: #2e5936; }
+* { box-sizing: border-box; }
 
-* {
-  box-sizing: border-box;
-}
+.admin-container { display: flex; flex-direction: column; height: 100vh; background-image: url('/background.png'); background-size: cover; font-family: 'Kanit', sans-serif; overflow: hidden; }
+.header { background: #2e5936; color: white; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
+.user-profile { display: flex; align-items: center; gap: 10px; transition: opacity 0.2s; }
+.user-profile:hover { opacity: 0.8; }
+.profile-img { width: 40px; height: 40px; border-radius: 50%; border: 2px solid white; object-fit: cover; }
+.logout-btn { background: #ddd; color: #333; border: none; padding: 8px 20px; border-radius: 20px; cursor: pointer; font-weight: 600; }
 
-.reportpage-container {
-  display: flex;
-  flex-direction: column;
-  height: 100vh;
-  background-image: url('/background.png');
-  background-size: cover;
-  background-position: center;
-  background-attachment: fixed;
-  font-family: 'Kanit', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  overflow: hidden;
-}
+.container { display: flex; flex: 1; max-width: 1200px; margin: 20px auto; gap: 20px; padding: 0 10px; overflow-y: auto; }
+.sidebar { width: 250px; flex-shrink: 0; display: flex; flex-direction: column; gap: 15px; }
+.banner-box { background: white; border-radius: 15px; overflow: hidden; }
+.banner-box img { width: 100%; display: block; }
+.nav-menu { background: white; border-radius: 15px; padding: 20px; display: flex; flex-direction: column; gap: 10px; }
+.menu-btn { background: #eee; border: 1px solid #ccc; padding: 12px; border-radius: 25px; cursor: pointer; text-align: center; font-weight: 600; font-family: 'Kanit'; }
+.active-btn { background: #2e5936; color: white; border: none; }
+.back-home-btn { margin-top: auto; background: #555; color: white; }
 
-/* Header */
-.header {
-  background-color: var(--primary-green);
-  color: white;
-  padding: 15px 20px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  box-shadow: 0 2px 5px rgba(0,0,0,0.2);
-}
+.main-content { flex-grow: 1; background: white; border-radius: 15px; padding: 20px; overflow-y: auto; }
 
-.user-profile {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
+/* Stats Grid */
+.stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px; margin-bottom: 20px; }
+.stat-card { background: white; border: 1px solid #eee; border-radius: 12px; padding: 20px; display: flex; align-items: center; gap: 15px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+.stat-icon { width: 60px; height: 60px; border-radius: 12px; display: flex; justify-content: center; align-items: center; font-size: 28px; color: white; }
+.green-icon { background: #4caf50; } .blue-icon { background: #2196f3; } .yellow-icon { background: #ffc107; }
+.stat-info h3 { margin: 0; font-size: 24px; font-weight: bold; }
 
-.user-profile img {
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  border: 2px solid white;
-}
-
-.logout-btn {
-  background-color: #ddd;
-  color: #333;
-  border: none;
-  padding: 8px 20px;
-  border-radius: 20px;
-  cursor: pointer;
-  font-weight: 600;
-  transition: 0.2s;
-  font-family: 'Kanit', sans-serif;
-}
-
-.logout-btn:hover {
-  background-color: #ccc;
-}
-
-/* Banners Section */
-.banners-section {
-  display: flex;
-  gap: 15px;
-  padding: 15px 20px;
-  background: transparent;
-  align-items: center;
-}
-
-.banner-small {
-  flex-shrink: 0;
-  border-radius: 12px;
-  overflow: hidden;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.1);
-}
-
-.banner-small img {
-  width: 180px;
-  height: 100px;
-  object-fit: cover;
-  display: block;
-}
-
-.banner-large {
-  flex: 1;
-  border-radius: 12px;
-  overflow: hidden;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.1);
-}
-
-.banner-large img {
-  width: 100%;
-  height: 100px;
-  object-fit: cover;
-  display: block;
-}
-
-/* Main Container */
-.container {
-  display: flex;
-  flex: 1;
-  max-width: 1200px;
-  margin: 0 auto;
-  width: 100%;
-  gap: 20px;
-  padding: 0 20px 20px;
-  overflow-y: auto;
-}
-
-/* Sidebar */
-.sidebar {
-  width: 200px;
-  flex-shrink: 0;
-}
-
-.nav-menu {
+/* ✅ Search Bar Style (เหมือนหน้า Home) */
+.search-bar {
   background-color: white;
-  border-radius: 15px;
-  padding: 15px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-}
-
-.menu-btn {
-  background-color: #eee;
-  border: 1px solid #ccc;
   padding: 10px;
-  border-radius: 25px;
-  cursor: pointer;
-  text-align: center;
-  font-weight: 600;
-  transition: 0.2s;
-  font-family: 'Kanit', sans-serif;
-  font-size: 14px;
-}
-
-.menu-btn:hover {
-  background-color: #e0e0e0;
-}
-
-.admin-btn {
-  background-color: var(--primary-green);
-  color: white;
-  border: none;
-  margin-top: auto;
-}
-
-.admin-btn:hover {
-  background-color: #1b3820;
-}
-
-/* Main Content */
-.main-content {
-  flex: 1;
-  background-color: white;
-  border-radius: 15px;
-  padding: 30px;
-  box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-}
-
-.content-title {
-  margin-bottom: 30px;
-  text-align: center;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 15px;
-}
-
-.content-title h2 {
-  color: var(--text-dark);
-  font-size: 28px;
-  font-weight: 700;
-  margin: 0;
-}
-
-.upload-image-link {
-  background-color: var(--secondary-green);
-  color: white;
-  border: none;
-  padding: 10px 20px;
-  border-radius: 20px;
-  cursor: pointer;
-  font-weight: 600;
-  font-family: 'Kanit', sans-serif;
-  font-size: 14px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  transition: all 0.3s ease;
-  align-self: center;
-}
-
-.upload-image-link:hover {
-  background-color: #4a8044;
-  transform: translateY(-2px);
-  box-shadow: 0 4px 8px rgba(0,0,0,0.2);
-}
-
-.upload-image-link i {
-  font-size: 16px;
-}
-
-/* Form Container */
-.form-container {
-  display: flex;
-  flex-direction: column;
-  gap: 25px;
-}
-
-/* Upload Section */
-.upload-section {
-  display: flex;
-  justify-content: center;
-}
-
-.upload-box {
-  border: 2px dashed #ccc;
   border-radius: 12px;
-  padding: 40px;
-  text-align: center;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  width: 100%;
-  max-width: 400px;
-  background-color: #f9f9f9;
-}
-
-.upload-box:hover {
-  border-color: var(--primary-green);
-  background-color: #f0f8f0;
-}
-
-.upload-box.has-image {
-  border: 2px solid var(--success-color);
-  background-color: #f0f8f0;
-  padding: 0;
-}
-
-.uploaded-image {
-  position: relative;
   display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 12px;
-  overflow: hidden;
-  height: 300px;
-  background-color: #f9f9f9;
-}
-
-.uploaded-image img {
-  max-width: 100%;
-  max-height: 100%;
-  object-fit: contain;
-}
-
-.remove-btn {
-  position: absolute;
-  top: 10px;
-  right: 10px;
-  background-color: #f44336;
-  color: white;
-  border: none;
-  border-radius: 50%;
-  width: 35px;
-  height: 35px;
-  cursor: pointer;
-  font-size: 20px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: 0.2s;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-}
-
-.remove-btn:hover {
-  background-color: #d32f2f;
-}
-
-.upload-placeholder {
-  padding: 20px;
-}
-
-.upload-icon {
-  width: 60px;
-  height: 60px;
-  color: var(--primary-green);
-  margin-bottom: 15px;
-}
-
-.upload-placeholder p {
-  font-size: 18px;
-  font-weight: 600;
-  color: var(--text-dark);
-  margin: 10px 0;
-}
-
-.upload-placeholder small {
-  color: #999;
-  font-size: 13px;
-}
-
-/* Form Fields */
-.form-fields {
-  display: flex;
-  flex-direction: column;
-  gap: 15px;
-  background-color: #f9f9f9;
-  padding: 20px;
-  border-radius: 12px;
-}
-
-.form-group {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.form-group label {
-  font-weight: 600;
-  color: var(--text-dark);
-  font-size: 14px;
-}
-
-.form-control {
-  padding: 10px 12px;
-  border: 1px solid #ddd;
-  border-radius: 6px;
-  font-family: 'Kanit', sans-serif;
-  font-size: 14px;
-  transition: 0.2s;
-}
-
-.form-control:focus {
-  outline: none;
-  border-color: var(--primary-green);
-  box-shadow: 0 0 0 3px rgba(46, 89, 54, 0.1);
-}
-
-textarea.form-control {
-  resize: vertical;
-  min-height: 100px;
-}
-
-/* Map Container */
-.map-container {
-  width: 100%;
-  height: 300px;
-  border: 2px solid #ddd;
-  border-radius: 8px;
-  margin-bottom: 10px;
-  z-index: 1;
-}
-
-.location-info {
-  background-color: #f0f8f0;
-  padding: 12px;
-  border-radius: 8px;
-  border: 1px solid #d4e8d4;
-}
-
-.location-info p {
-  margin: 5px 0;
-  font-size: 13px;
-  color: var(--primary-green);
-  font-weight: 600;
-}
-
-/* Alert Messages */
-.alert {
-  padding: 12px 15px;
-  border-radius: 6px;
-  display: flex;
-  align-items: center;
   gap: 10px;
-  font-weight: 500;
-  animation: slideIn 0.3s ease;
-}
-
-.alert-success {
-  background-color: #d4edda;
-  color: #155724;
-  border: 1px solid #c3e6cb;
-}
-
-.alert-danger {
-  background-color: #f8d7da;
-  color: #721c24;
-  border: 1px solid #f5c6cb;
-}
-
-@keyframes slideIn {
-  from {
-    opacity: 0;
-    transform: translateY(-10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-/* Button Group */
-.button-group {
-  display: flex;
-  gap: 15px;
-  justify-content: center;
-  margin-top: 20px;
-}
-
-.btn {
-  padding: 12px 40px;
-  border: none;
-  border-radius: 25px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  font-family: 'Kanit', sans-serif;
-  font-size: 14px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-}
-
-.btn-submit {
-  background-color: var(--primary-green);
-  color: rgb(0, 0, 0);
-  flex: 0 1 auto;
-  min-width: 150px;
-}
-
-.btn-submit:hover:not(:disabled) {
-  background-color: #1b3820;
-  transform: translateY(-2px);
-  box-shadow: 0 4px 8px rgba(0,0,0,0.2);
-}
-
-.btn-submit:disabled {
-  opacity: 0.7;
-  cursor: not-allowed;
-}
-
-.btn-cancel {
-  background-color: #f5f5f5;
-  color: #333;
+  margin-bottom: 20px;
   border: 1px solid #ddd;
-  min-width: 150px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+}
+.search-input {
+  flex-grow: 1;
+  padding: 10px 15px;
+  border-radius: 8px;
+  border: 1px solid #eee;
+  outline: none;
+  font-family: "Kanit";
+  background-color: #f9f9f9;
+}
+.category-select {
+  padding: 10px 15px;
+  border-radius: 8px;
+  border: 1px solid #eee;
+  background-color: #f9f9f9;
+  cursor: pointer;
+  font-family: "Kanit";
 }
 
-.btn-cancel:hover {
-  background-color: #e0e0e0;
-}
-
-.spinner-border-sm {
-  width: 1rem;
-  height: 1rem;
-  border-width: 0.15em;
-}
-
-/* Responsive */
-@media (max-width: 1024px) {
-  .container {
-    gap: 15px;
-  }
-
-  .sidebar {
-    width: 150px;
-  }
-
-  .menu-btn {
-    padding: 8px;
-    font-size: 12px;
-  }
-
-  .main-content {
-    padding: 20px;
-  }
-}
+/* Table & Buttons */
+.custom-table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+.custom-table th { background: #f8f9fa; padding: 12px; text-align: left; }
+.custom-table td { padding: 12px; border-bottom: 1px solid #eee; vertical-align: middle; }
+.table-img { width: 50px; height: 50px; object-fit: cover; border-radius: 8px; border: 1px solid #ddd; }
+.status-select { padding: 5px 10px; border-radius: 20px; border: none; font-weight: 600; text-align: center; }
+.status-pending { background: #fff3cd; color: #856404; }
+.status-progress { background: #cff4fc; color: #055160; }
+.status-resolved { background: #d1e7dd; color: #0f5132; }
+.btn-icon { background: none; border: none; cursor: pointer; font-size: 1.2rem; margin: 0 5px; }
+.view { color: #0d6efd; } .delete { color: #dc3545; }
 
 @media (max-width: 768px) {
-  .banners-section {
-    flex-direction: column;
-    padding: 10px;
-  }
-
-  .banner-small {
-    width: 100%;
-  }
-
-  .banner-small img {
-    width: 100%;
-    height: 80px;
-  }
-
-  .banner-large img {
-    height: 80px;
-  }
-
-  .container {
-    flex-direction: column;
-    padding: 0 10px 10px;
-  }
-
-  .sidebar {
-    width: 100%;
-  }
-
-  .nav-menu {
-    flex-direction: row;
-    flex-wrap: wrap;
-  }
-
-  .menu-btn {
-    flex: 1;
-    min-width: 40%;
-  }
-
-  .upload-box {
-    max-width: 100%;
-  }
-
-  .button-group {
-    flex-direction: column;
-  }
-
-  .btn {
-    width: 100%;
-  }
+  .container { flex-direction: column; }
+  .sidebar { width: 100%; }
+  .nav-menu { flex-direction: row; flex-wrap: wrap; }
+  .menu-btn { flex: 1; }
+  .table-responsive { overflow-x: auto; }
 }
 </style>
