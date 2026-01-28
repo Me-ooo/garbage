@@ -43,15 +43,13 @@
 
           <div class="spacer"></div>
 
-          <button class="menu-btn back-home-btn" @click="$router.push('/')">
-            <i class="bi bi-house-door-fill"></i> กลับหน้าหลัก
-          </button>
+          
         </div>
       </aside>
 
       <main class="main-content">
         <div class="content-header">
-          <h2>📊 ภาพรวมสถิติระบบ</h2>
+          <h2>📊 ภาพรวมทั้งหมด</h2>
           <p></p>
         </div>
 

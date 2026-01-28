@@ -50,10 +50,6 @@
           </button>
 
           <div class="menu-divider"></div>
-
-          <button class="menu-btn back-home-btn" @click="goToHome">
-            <i class="bi bi-house-door-fill"></i> กลับหน้าหลัก
-          </button>
         </div>
       </aside>
 
