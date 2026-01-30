@@ -397,9 +397,7 @@ const viewAndForward = (report) => {
         <select id="agency-select" class="swal2-input" style="width: 100%; margin: 0; border-radius:8px;">
           <option value="" disabled selected>-- เลือกหน่วยงาน --</option>
           <option value="อบต.">อบต.</option>
-          <option value="สำนักงานเขต">สำนักงานเขต</option>
-          <option value="กรมทางหลวง">กรมทางหลวง</option>
-          <option value="การไฟฟ้า">การไฟฟ้า</option>
+          <option value="สำนักงานเขต">สำนักงานเขต</option> 
         </select>
       </div>
     `,
