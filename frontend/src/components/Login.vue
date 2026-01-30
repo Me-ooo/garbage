@@ -38,7 +38,7 @@ const loginWithGoogle = async () => {
     const res = await axios.post('http://localhost:3000/api/google-login-simple', mockUser)
     
     // แจ้งเตือนนิดหน่อยให้รู้ว่าจำลองสำเร็จ
-    alert(`(Mock) เข้าสู่ระบบ Google สำเร็จ!\nEmail: ${mockUser.email}`)
+    alert(`เข้าสู่ระบบ Google สำเร็จ!\nEmail: ${mockUser.email}`)
     
     processLogin(res.data)
   } catch (error) {
@@ -309,7 +309,7 @@ const handleError = (error) => {
 /* ข้อความ Error (เพิ่มใหม่) */
 .error-text {
   color: #ffcccc;
-  background-color: rgba(255, 0, 0, 0.2);
+  background-color: rgba(255, 0, 0, 0.555);
   padding: 8px;
   border-radius: 5px;
   margin-bottom: 15px;
