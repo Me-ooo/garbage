@@ -1,30 +1,50 @@
 <script setup>
-// ไม่ต้อง import Components หน้าอื่นๆ เข้ามาแล้ว
-// ไม่ต้องมีตัวแปร currentPage หรือ togglePage แล้ว
+// ไม่ต้อง import อะไรเพิ่มแล้วครับ router-view จะจัดการให้เอง
 </script>
 
 <template>
-  <div class="app-container">
-    <router-view />
-  </div>
+  <router-view />
 </template>
 
 <style>
-/* Style หลักของ Container */
-.app-container {
-  /* max-width: 500px;  <-- ถ้าทำเว็บ Desktop แนะนำให้ลบบรรทัดนี้ออกครับ ไม่งั้นหน้าจอจะแคบ */
-  margin: 0 auto;
-  min-height: 100vh;
-  box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
-  position: relative;
-  background-color: white; /* เปลี่ยนจาก flex-direction: white (ที่ผิด) เป็น background-color */
-}
+/* ✅ 1. นำเข้าฟอนต์ Kanit จาก Google Fonts ทีเดียวจบ ใช้ได้ทั้งเว็บ */
+@import url('https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600&display=swap');
 
-body, html {
+/* ✅ 2. ตั้งค่า Global Styles (Reset CSS) */
+body,
+html {
   margin: 0;
   padding: 0;
   width: 100%;
   height: 100%;
-  /* overflow: hidden; <-- ลบออกครับ เพื่อให้หน้ายาวๆ สามารถ Scroll ลงมาได้ */
+  font-family: 'Kanit', sans-serif;
+  /* บังคับใช้ฟอนต์ Kanit ทั้งเว็บ */
+  background-color: #f5f5f5;
+  /* สีพื้นหลังรองรับ */
+  overflow-x: hidden;
+  /* ป้องกันสกรอลแนวนอน */
+}
+
+#app {
+  width: 100%;
+  min-height: 100vh;
+}
+
+/* Scrollbar สวยๆ (แถมให้) */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #ccc;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #aaa;
 }
 </style>

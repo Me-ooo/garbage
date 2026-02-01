@@ -1,3 +1,142 @@
+<script setup>
+import { ref, onMounted, computed } from 'vue';
+import axios from 'axios';
+import Swal from 'sweetalert2';
+import { useRouter } from 'vue-router';
+import VueCropper from 'vue-cropperjs';
+import 'cropperjs/dist/cropper.css'; // ✅ สำคัญ! ต้อง import CSS ไม่งั้นหน้าตัดรูปจะพัง
+
+const router = useRouter();
+const isLoading = ref(false);
+
+// ✅ ดึง URL จาก Environment Variable (ใช้ได้ทั้ง Local และ Vercel)
+const API_URL = import.meta.env.VITE_API_BASE_URL;
+
+// ตัวแปรสำหรับ Cropper
+const showCropper = ref(false);
+const tempImage = ref(null);    // รูปต้นฉบับที่เลือกมา
+const croppedBlob = ref(null);  // รูปที่ตัดเสร็จแล้ว (เป็นไฟล์ Blob)
+const cropper = ref(null);      // อ้างอิง component cropper
+const timestamp = ref(Date.now()); // ตัวช่วยแก้ Cache รูป
+
+const form = ref({
+  id: '',
+  fullname: '',
+  phone: '',
+  email: '',
+  image_url: ''
+});
+
+// ✅ Computed Property: จัดการการแสดงผลรูปภาพ
+const currentImage = computed(() => {
+  // 1. ถ้ามีการตัดรูปใหม่ ให้โชว์รูปที่ตัดทันที (Preview)
+  if (croppedBlob.value) {
+    return URL.createObjectURL(croppedBlob.value);
+  }
+  
+  // 2. ถ้ามีรูปเดิมในระบบ
+  if (form.value.image_url) {
+    // กรณีเป็นรูปจาก Google/Facebook (มี http นำหน้า) ให้ใช้เลย
+    if (form.value.image_url.startsWith('http')) {
+      return form.value.image_url;
+    }
+    // กรณีเป็นรูปที่อัปโหลดเอง (ต้องต่อ API URL ข้างหน้า)
+    return `${API_URL}${form.value.image_url}?t=${timestamp.value}`;
+  }
+  
+  // 3. ถ้าไม่มีอะไรเลย ใช้รูป Default
+  return '/admin-profile.png';
+});
+
+onMounted(() => {
+  const userStr = localStorage.getItem('user');
+  if (userStr) {
+    const user = JSON.parse(userStr);
+    form.value = { ...user };
+  }
+});
+
+// ✅ เมื่อเลือกไฟล์ -> เปิด Modal ตัดรูป
+const onFileChange = (event) => {
+  const file = event.target.files[0];
+  if (file) {
+    // เช็คประเภทไฟล์
+    if (!file.type.match('image.*')) {
+      return Swal.fire('แจ้งเตือน', 'กรุณาเลือกไฟล์รูปภาพเท่านั้น', 'warning');
+    }
+    
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      tempImage.value = e.target.result; // เก็บไฟล์ต้นฉบับ
+      showCropper.value = true;          // เปิด Modal
+    };
+    reader.readAsDataURL(file);
+  }
+  event.target.value = ''; // Reset input ให้เลือกรูปเดิมซ้ำได้
+};
+
+// ✅ ฟังก์ชันยืนยันการตัดรูป
+const cropImage = () => {
+  // สั่งให้ Cropper แปลงรูปเป็น Blob (ไฟล์ภาพ)
+  if (cropper.value) {
+    cropper.value.getCroppedCanvas().toBlob((blob) => {
+      croppedBlob.value = blob; // เก็บไฟล์ที่ตัดแล้วไว้เตรียมส่ง
+      showCropper.value = false; // ปิด Modal
+    });
+  }
+};
+
+const updateProfile = async () => {
+  if (!form.value.fullname) {
+    return Swal.fire('แจ้งเตือน', 'กรุณากรอกชื่อ-นามสกุล', 'warning');
+  }
+
+  isLoading.value = true;
+  try {
+    const formData = new FormData();
+    formData.append('fullname', form.value.fullname);
+    formData.append('phone', form.value.phone || '');
+    
+    // ✅ ส่งไฟล์ที่ Crop แล้ว (ถ้ามี)
+    if (croppedBlob.value) {
+      formData.append('image', croppedBlob.value, 'profile.jpg');
+    }
+
+    const token = localStorage.getItem('token');
+    
+    // ✅ ใช้ API_URL แทน localhost
+    const res = await axios.put(`${API_URL}/users/${form.value.id}`, formData, {
+      headers: { 
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'multipart/form-data'
+      }
+    });
+
+    // อัปเดตข้อมูลใน LocalStorage
+    localStorage.setItem('user', JSON.stringify(res.data.user));
+    
+    // ✅ อัปเดต timestamp เพื่อให้รูปทุกจุดในเว็บเปลี่ยนทันที
+    form.value = res.data.user;
+    timestamp.value = Date.now();
+    croppedBlob.value = null; // เคลียร์รูปชั่วคราว
+
+    Swal.fire({
+      icon: 'success',
+      title: 'บันทึกสำเร็จ',
+      text: 'ข้อมูลโปรไฟล์ของคุณถูกอัปเดตแล้ว',
+      timer: 1500,
+      showConfirmButton: false
+    });
+
+  } catch (error) {
+    console.error(error);
+    Swal.fire('Error', 'ไม่สามารถบันทึกข้อมูลได้', 'error');
+  } finally {
+    isLoading.value = false;
+  }
+};
+</script>
+
 <template>
   <div class="profile-container">
     <div class="profile-card">
@@ -18,7 +157,7 @@
           <div class="avatar-edit">
             <input type='file' id="imageUpload" accept=".png, .jpg, .jpeg" @change="onFileChange" />
             <label for="imageUpload">
-              <i class="bi bi-camera-fill"></i> แก้ไขรูป
+              ✏️ แก้ไขรูป
             </label>
           </div>
         </div>
@@ -56,6 +195,7 @@
             :view-mode="1"
             drag-mode="move"
             :background="false"
+            :guides="true"
           ></vue-cropper>
         </div>
         <div class="cropper-actions">
@@ -67,131 +207,6 @@
 
   </div>
 </template>
-
-<script setup>
-import { ref, onMounted, computed } from 'vue';
-import axios from 'axios';
-import Swal from 'sweetalert2';
-import { useRouter } from 'vue-router';
-import VueCropper from 'vue-cropperjs';
-
-
-const router = useRouter();
-const isLoading = ref(false);
-
-// ตัวแปรสำหรับ Cropper
-const showCropper = ref(false);
-const tempImage = ref(null);    // รูปต้นฉบับที่เลือกมา
-const croppedBlob = ref(null);  // รูปที่ตัดเสร็จแล้ว (เป็นไฟล์ Blob)
-const cropper = ref(null);      // อ้างอิง component cropper
-const timestamp = ref(Date.now()); // ตัวช่วยแก้ Cache รูป
-
-const form = ref({
-  id: '',
-  fullname: '',
-  phone: '',
-  email: '',
-  image_url: ''
-});
-
-// ✅ Computed Property: จัดการการแสดงผลรูปภาพ
-const currentImage = computed(() => {
-  // 1. ถ้ามีการตัดรูปใหม่ ให้โชว์รูปที่ตัดทันที
-  if (croppedBlob.value) {
-    return URL.createObjectURL(croppedBlob.value);
-  }
-  // 2. ถ้ามีรูปเดิมในระบบ ให้โชว์พร้อม timestamp (แก้ปัญหา Browser จำรูปเก่า)
-  if (form.value.image_url) {
-    return `http://localhost:3000${form.value.image_url}?t=${timestamp.value}`;
-  }
-  // 3. ถ้าไม่มีอะไรเลย ใช้รูป Default
-  return '/admin-profile.png';
-});
-
-onMounted(() => {
-  const userStr = localStorage.getItem('user');
-  if (userStr) {
-    const user = JSON.parse(userStr);
-    form.value = { ...user };
-  }
-});
-
-// ✅ เมื่อเลือกไฟล์ -> เปิด Modal ตัดรูป
-const onFileChange = (event) => {
-  const file = event.target.files[0];
-  if (file) {
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      tempImage.value = e.target.result; // เก็บไฟล์ต้นฉบับ
-      showCropper.value = true;          // เปิด Modal
-    };
-    reader.readAsDataURL(file);
-  }
-  event.target.value = ''; // Reset input ให้เลือกรูปเดิมซ้ำได้
-};
-
-// ✅ ฟังก์ชันยืนยันการตัดรูป
-const cropImage = () => {
-  // สั่งให้ Cropper แปลงรูปเป็น Blob (ไฟล์ภาพ)
-  cropper.value.getCroppedCanvas().toBlob((blob) => {
-    croppedBlob.value = blob; // เก็บไฟล์ที่ตัดแล้วไว้เตรียมส่ง
-    showCropper.value = false; // ปิด Modal
-  });
-};
-
-const updateProfile = async () => {
-  if (!form.value.fullname) {
-    return Swal.fire('แจ้งเตือน', 'กรุณากรอกชื่อ-นามสกุล', 'warning');
-  }
-
-  isLoading.value = true;
-  try {
-    const formData = new FormData();
-    formData.append('fullname', form.value.fullname);
-    formData.append('phone', form.value.phone || '');
-    
-    // ✅ ส่งไฟล์ที่ Crop แล้ว (ถ้ามี)
-    if (croppedBlob.value) {
-      formData.append('image', croppedBlob.value, 'profile.jpg');
-    }
-
-    const token = localStorage.getItem('token');
-    
-    const res = await axios.put(`http://localhost:3000/api/users/${form.value.id}`, formData, {
-      headers: { 
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'multipart/form-data'
-      }
-    });
-
-    // อัปเดตข้อมูลใน LocalStorage
-    localStorage.setItem('user', JSON.stringify(res.data.user));
-    
-    // ✅ อัปเดต timestamp เพื่อให้รูปทุกจุดในเว็บเปลี่ยนทันที
-    form.value = res.data.user;
-    timestamp.value = Date.now();
-    croppedBlob.value = null; // เคลียร์รูปชั่วคราว
-
-    Swal.fire({
-      icon: 'success',
-      title: 'บันทึกสำเร็จ',
-      text: 'ข้อมูลโปรไฟล์ของคุณถูกอัปเดตแล้ว',
-      timer: 1500,
-      showConfirmButton: false
-    }).then(() => {
-       // ไม่ต้อง reload หน้าก็ได้เพราะเราจัดการ state รูปแล้ว
-       // หรือถ้าอยากกลับไปหน้าก่อนหน้าให้ uncomment บรรทัดล่าง
-       // router.go(-1); 
-    });
-
-  } catch (error) {
-    console.error(error);
-    Swal.fire('Error', 'ไม่สามารถบันทึกข้อมูลได้', 'error');
-  } finally {
-    isLoading.value = false;
-  }
-};
-</script>
 
 <style scoped>
 .profile-container {
@@ -265,17 +280,14 @@ const updateProfile = async () => {
 
 .avatar-edit label {
   display: inline-block;
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
+  padding: 8px 15px;
+  border-radius: 20px;
   background: #e67e22;
   color: white;
   border: 2px solid white;
   box-shadow: 0px 2px 4px 0px rgba(0,0,0,0.12);
   cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  font-size: 0.9rem;
   transition: all .2s;
 }
 
@@ -286,8 +298,9 @@ const updateProfile = async () => {
 .form-group label { display: block; font-weight: bold; margin-bottom: 8px; color: #555; }
 .form-control {
   width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 10px; font-family: 'Kanit';
+  box-sizing: border-box; /* สำคัญ: ป้องกัน input ล้นกรอบ */
 }
-.form-control.disabled { background-color: #f0f0f0; color: #888; }
+.form-control.disabled { background-color: #f0f0f0; color: #888; cursor: not-allowed; }
 
 .btn-save {
   width: 100%; padding: 12px; border: none; border-radius: 50px;
@@ -295,15 +308,16 @@ const updateProfile = async () => {
   cursor: pointer; transition: 0.3s; margin-top: 10px;
 }
 .btn-save:hover { background-color: #1b3820; }
+.btn-save:disabled { background-color: #ccc; cursor: not-allowed; }
 
-/* ✅ CSS สำหรับ Cropper Modal (ส่วนใหม่) */
+/* CSS สำหรับ Cropper Modal */
 .cropper-modal {
   position: fixed;
   top: 0;
   left: 0;
   width: 100%;
   height: 100%;
-  background-color: rgba(0, 0, 0, 0.85); /* พื้นหลังดำโปร่งแสง */
+  background-color: rgba(0, 0, 0, 0.85);
   z-index: 9999;
   display: flex;
   justify-content: center;
@@ -320,7 +334,7 @@ const updateProfile = async () => {
 }
 
 .cropper-wrapper {
-  height: 350px; /* ความสูงพื้นที่ตัดรูป */
+  height: 350px;
   background: #333;
   margin: 15px 0;
   border-radius: 5px;

@@ -86,7 +86,7 @@
         </div>
 
         <div v-if="loading" class="text-center mt-5">
-          <div class="spinner-border text-success" role="status"></div>
+          <div class="loading-text">กำลังโหลดข้อมูล...</div>
         </div>
 
         <div v-else class="table-card">
@@ -107,14 +107,8 @@
                   <td>
                     <div class="img-wrapper">
                       <img
-                        :src="
-                          report.image_url
-                            ? `http://localhost:3000${report.image_url}`
-                            : '/no-image.png'
-                        "
-                        @error="
-                          $event.target.src = 'https://placehold.co/50x50?text=No+Img'
-                        "
+                        :src="getImageUrl(report.image_url)"
+                        @error="$event.target.src = 'https://placehold.co/50x50?text=No+Img'"
                       />
                     </div>
                   </td>
@@ -184,14 +178,8 @@
                   <td>
                     <div class="img-wrapper circle">
                       <img
-                        :src="
-                          user.image_url
-                            ? `http://localhost:3000${user.image_url}`
-                            : '/admin-profile.png'
-                        "
-                        @error="
-                          $event.target.src = 'https://placehold.co/40x40?text=User'
-                        "
+                        :src="getImageUrl(user.image_url)"
+                        @error="$event.target.src = 'https://placehold.co/40x40?text=User'"
                       />
                     </div>
                   </td>
@@ -264,7 +252,10 @@ import Swal from "sweetalert2";
 import { useRouter } from "vue-router";
 
 const router = useRouter();
-const activeTab = ref("reports"); // Default active tab
+// ✅ 1. ใช้ URL กลางจาก .env
+const API_URL = import.meta.env.VITE_API_BASE_URL;
+
+const activeTab = ref("reports"); 
 const reports = ref([]);
 const users = ref([]);
 const loading = ref(false);
@@ -274,15 +265,24 @@ const filterStatus = ref("all");
 
 // --- Pagination Variables ---
 const currentPage = ref(1);
-const itemsPerPage = 6; // จำนวนรายการต่อหน้า
+const itemsPerPage = 6; 
+
+// ✅ ฟังก์ชันจัดการ URL รูปภาพให้รองรับทั้ง Localhost และ Vercel
+const getImageUrl = (path) => {
+  if (!path) return '';
+  if (path.startsWith('http')) return path; // กรณีเป็นรูปจาก Google/Facebook
+  // ถ้าเป็น Path จาก Server ให้ต่อ Base URL ของ API (ตัด /api ออก ถ้า path มี /uploads)
+  // แต่ในเคสนี้เราใช้ API_URL เป็น Base ได้เลย หรือใช้ URL ของเว็บ
+  // เพื่อความง่าย: ให้ใช้ API_URL แต่ต้องระวังเรื่อง Path ซ้ำซ้อน
+  const baseUrl = API_URL.replace('/api', ''); // ตัด /api ออกเพื่อเข้าถึง static files
+  return `${baseUrl}${path}`;
+};
 
 const userImage = computed(() => {
   const userStr = localStorage.getItem("user");
   if (userStr) {
     const user = JSON.parse(userStr);
-    return user.image_url
-      ? `http://localhost:3000${user.image_url}`
-      : "/admin-profile.png";
+    return user.image_url ? getImageUrl(user.image_url) : "/admin-profile.png";
   }
   return "/admin-profile.png";
 });
@@ -315,7 +315,6 @@ const filteredUsers = computed(() => {
 
 // ✅ Computed สำหรับตัดข้อมูลตามหน้า (Pagination)
 const paginatedItems = computed(() => {
-  // เลือกข้อมูลตาม Tab ที่ Active อยู่
   const list =
     activeTab.value === "reports" ? filteredReports.value : filteredUsers.value;
 
@@ -331,21 +330,18 @@ const totalPages = computed(() => {
   return Math.ceil(list.length / itemsPerPage);
 });
 
-// ✅ ฟังก์ชันเปลี่ยนหน้า
 const changePage = (page) => {
   if (page >= 1 && page <= totalPages.value) {
     currentPage.value = page;
   }
 };
 
-// ✅ ฟังก์ชันเปลี่ยน Tab (พร้อมรีเซ็ตหน้า)
 const switchTab = (tabName) => {
   activeTab.value = tabName;
   currentPage.value = 1;
-  searchText.value = ""; // รีเซ็ตคำค้นหาด้วยถ้าต้องการ
+  searchText.value = ""; 
 };
 
-// รีเซ็ตหน้าเป็น 1 เมื่อมีการค้นหา หรือเปลี่ยน Filter
 watch([searchText, filterStatus], () => {
   currentPage.value = 1;
 });
@@ -354,16 +350,19 @@ const getAuthConfig = () => ({
   headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
 });
 
+// ✅ 2. แก้ไขการดึงข้อมูลให้ตรงกับ Endpoint ใหม่
 const fetchData = async () => {
   loading.value = true;
   try {
     const config = getAuthConfig();
     const [reportsRes, usersRes] = await Promise.all([
-      axios.get(`${import.meta.env.VITE_API_BASE_URL}/users`)
+      axios.get(`${API_URL}/admin/reports`, config), // ใช้ route admin
+      axios.get(`${API_URL}/users`, config)          // ใช้ route users
     ]);
     reports.value = reportsRes.data;
     users.value = usersRes.data;
   } catch (err) {
+    console.error("Fetch Data Error:", err);
     if (err.response?.status === 401) {
       router.push("/login");
     }
@@ -372,21 +371,21 @@ const fetchData = async () => {
 };
 
 const viewAndForward = (report) => {
+  // ✅ 3. แก้ลิงก์ Google Maps ให้ถูกต้อง
   const mapLink = `https://www.google.com/maps/search/?api=1&query=${report.latitude},${report.longitude}`;
 
   Swal.fire({
     title: `<strong>${report.title}</strong>`,
     html: `
       <div style="text-align: left; font-size: 0.95rem;">
-        <img src="${report.image_url ? "http://localhost:3000" + report.image_url : ""}" 
-             style="width:100%; max-height:250px; object-fit:cover; border-radius:12px; margin-bottom:15px; box-shadow: 0 4px 10px rgba(0,0,0,0.1);">
+        <img src="${getImageUrl(report.image_url)}" 
+             style="width:100%; max-height:250px; object-fit:cover; border-radius:12px; margin-bottom:15px; box-shadow: 0 4px 10px rgba(0,0,0,0.1);"
+             onerror="this.style.display='none'">
         <div style="background:#f9f9f9; padding:15px; border-radius:10px; margin-bottom:15px;">
           <p class="mb-1"><strong>👤 ผู้แจ้ง:</strong> ${report.username || "ไม่ระบุ"}</p>
           <p class="mb-1"><strong>📞 เบอร์โทร:</strong> ${report.contact || "-"}</p>
           <p class="mb-1"><strong>📝 รายละเอียด:</strong> ${report.description}</p>
-          <p class="mb-0"><strong>📍 พิกัด:</strong> ${report.latitude}, ${
-      report.longitude
-    }</p>
+          <p class="mb-0"><strong>📍 พิกัด:</strong> ${report.latitude}, ${report.longitude}</p>
         </div>
         <a href="${mapLink}" target="_blank" class="btn-map" style="display:block; text-align:center; background:#4285F4; color:white; padding:10px; border-radius:30px; text-decoration:none; font-weight:bold; margin-bottom:15px;">
           <i class="bi bi-geo-alt-fill"></i> เปิดใน Google Maps
@@ -425,7 +424,7 @@ const viewAndForward = (report) => {
 const updateStatus = async (id, newStatus) => {
   try {
     await axios.put(
-      `http://localhost:3000/api/admin/reports/${id}/status`,
+      `${API_URL}/admin/reports/${id}/status`,
       { status: newStatus },
       getAuthConfig()
     );
@@ -439,7 +438,7 @@ const updateStatus = async (id, newStatus) => {
     Toast.fire({ icon: "success", title: "อัปเดตสถานะเรียบร้อย" });
   } catch (err) {
     Swal.fire("Error", "ไม่สามารถอัปเดตสถานะได้", "error");
-    fetchData();
+    fetchData(); // โหลดข้อมูลใหม่เพื่อคืนค่าเดิม
   }
 };
 
@@ -447,15 +446,21 @@ const deleteReport = async (id) => {
   if (
     await Swal.fire({
       title: "ยืนยันการลบ?",
+      text: "คุณจะไม่สามารถกู้คืนข้อมูลนี้ได้",
       icon: "warning",
       showCancelButton: true,
       confirmButtonColor: "#d33",
       confirmButtonText: "ลบเลย",
+      cancelButtonText: "ยกเลิก"
     }).then((r) => r.isConfirmed)
   ) {
-    await axios.delete(`http://localhost:3000/api/admin/reports/${id}`, getAuthConfig());
-    fetchData();
-    Swal.fire("ลบสำเร็จ", "", "success");
+    try {
+      await axios.delete(`${API_URL}/admin/reports/${id}`, getAuthConfig());
+      fetchData();
+      Swal.fire("ลบสำเร็จ", "", "success");
+    } catch (err) {
+      Swal.fire("Error", "ลบข้อมูลไม่สำเร็จ", "error");
+    }
   }
 };
 
@@ -463,15 +468,21 @@ const deleteUser = async (id) => {
   if (
     await Swal.fire({
       title: "ยืนยันการลบ?",
+      text: "ผู้ใช้นี้จะไม่สามารถเข้าสู่ระบบได้อีก",
       icon: "warning",
       showCancelButton: true,
       confirmButtonColor: "#d33",
       confirmButtonText: "ลบเลย",
+      cancelButtonText: "ยกเลิก"
     }).then((r) => r.isConfirmed)
   ) {
-    await axios.delete(`http://localhost:3000/api/users/${id}`, getAuthConfig());
-    fetchData();
-    Swal.fire("ลบสำเร็จ", "", "success");
+    try {
+      await axios.delete(`${API_URL}/users/${id}`, getAuthConfig());
+      fetchData();
+      Swal.fire("ลบสำเร็จ", "", "success");
+    } catch (err) {
+      Swal.fire("Error", "ลบข้อมูลไม่สำเร็จ", "error");
+    }
   }
 };
 
@@ -481,7 +492,6 @@ const logout = () => {
     router.push("/login");
   }
 };
-const goToHome = () => router.push("/");
 const goToSystemOverview = () => router.push("/system-overview");
 
 const getStatusClass = (s) =>
@@ -490,6 +500,7 @@ const getStatusClass = (s) =>
     in_progress: "status-progress",
     resolved: "status-resolved",
   }[s]);
+
 const formatDate = (d) =>
   new Date(d).toLocaleDateString("th-TH", {
     year: "2-digit",
@@ -632,32 +643,10 @@ onMounted(() => {
   color: white;
 }
 
-.menu-label {
-  font-size: 0.85rem;
-  color: #999;
-  margin-top: 10px;
-  margin-bottom: 2px;
-  padding-left: 5px;
-  font-weight: 600;
-  text-transform: uppercase;
-}
 .menu-divider {
   height: 1px;
   background: #eee;
   margin: 5px 0;
-}
-.back-home-btn {
-  margin-top: auto;
-  background: #555;
-  color: white;
-  border: none;
-  justify-content: center;
-}
-.back-home-btn i {
-  color: white;
-}
-.back-home-btn:hover {
-  background-color: #333;
 }
 
 .main-content {
@@ -822,6 +811,12 @@ onMounted(() => {
   font-style: italic;
 }
 
+.loading-text {
+  font-size: 1.2rem;
+  color: #666;
+  font-weight: bold;
+}
+
 /* ✅ CSS สำหรับ Pagination Bar */
 .pagination-container {
   display: flex;
@@ -855,7 +850,7 @@ onMounted(() => {
 }
 
 .page-btn.active {
-  background-color: #2e5936; /* สีเขียวเข้มเมื่อเลือก */
+  background-color: #2e5936;
   color: white;
   border-color: #2e5936;
   box-shadow: 0 4px 10px rgba(46, 89, 54, 0.3);

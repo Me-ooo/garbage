@@ -1,8 +1,17 @@
 <template>
   <div class="homepage-container">
     <header class="header">
-      <div class="user-profile" @click="$router.push('/profile')" style="cursor: pointer;" title="แก้ไขโปรไฟล์">
-        <img :src="userImage" alt="User Avatar" @error="$event.target.src = 'https://placehold.co/40x40?text=User'" />
+      <div
+        class="user-profile"
+        @click="$router.push('/profile')"
+        style="cursor: pointer"
+        title="แก้ไขโปรไฟล์"
+      >
+        <img
+          :src="userImage"
+          alt="User Avatar"
+          @error="$event.target.src = 'https://placehold.co/40x40?text=User'"
+        />
         <span>สวัสดีคุณ {{ userName }}</span>
       </div>
       <button class="logout-btn" @click="handleLogout">ออกจากระบบ</button>
@@ -11,12 +20,20 @@
     <div class="container">
       <aside class="sidebar">
         <div class="banner-box">
-          <img src="/admin-sidebar.png" alt="Campaign Banner"
-            @error="$event.target.src = 'https://placehold.co/250x150'" />
+          <img
+            src="/admin-sidebar.png"
+            alt="Campaign Banner"
+            @error="$event.target.src = 'https://placehold.co/250x150'"
+          />
         </div>
 
         <div class="nav-menu">
-          <button v-for="menu in menuItems" :key="menu.id" class="menu-btn" @click="handleMenuClick(menu.id)">
+          <button
+            v-for="menu in menuItems"
+            :key="menu.id"
+            class="menu-btn"
+            @click="handleMenuClick(menu.id)"
+          >
             {{ menu.label }}
           </button>
         </div>
@@ -24,14 +41,26 @@
 
       <main class="main-content">
         <div class="banner-top">
-          <img src="/admin-banner.png" alt="Environment Banner"
-            @error="$event.target.src = 'https://placehold.co/800x150'" />
+          <img
+            src="/admin-banner.png"
+            alt="Environment Banner"
+            @error="$event.target.src = 'https://placehold.co/800x150'"
+          />
         </div>
 
         <div class="search-bar">
-          <input v-model="searchText" type="text" class="search-input" placeholder="ค้นหาปัญหา..."
-            @input="handleFilterChange" />
-          <select v-model="selectedCategory" class="category-select" @change="handleFilterChange">
+          <input
+            v-model="searchText"
+            type="text"
+            class="search-input"
+            placeholder="ค้นหาปัญหา..."
+            @input="handleFilterChange"
+          />
+          <select
+            v-model="selectedCategory"
+            class="category-select"
+            @change="handleFilterChange"
+          >
             <option value="all">สถานะ: ทั้งหมด</option>
             <option value="pending">⏳ รอดำเนินการ</option>
             <option value="in_progress">🔧 กำลังแก้ไข</option>
@@ -40,17 +69,20 @@
         </div>
 
         <div v-if="loading" class="text-center mt-5">
-          <div class="spinner-border text-success" role="status"></div>
-          <p>กำลังโหลดข้อมูล...</p>
+          <div class="loading-spinner"></div>
+          <p class="loading-text">กำลังโหลดข้อมูล...</p>
         </div>
 
         <div v-else class="report-list">
           <div v-for="report in reports" :key="report.id" class="report-card">
-            <img :src="report.image_url
-                ? `http://localhost:3000${report.image_url}`
-                : '/no-image.png'
-              " :alt="report.title" class="report-img" @click="viewReportDetails(report)" style="cursor: pointer;"
-              @error="$event.target.src = 'https://placehold.co/100x100?text=No+Image'" />
+            <img
+              :src="getImageUrl(report.image_url)"
+              :alt="report.title"
+              class="report-img"
+              @click="viewReportDetails(report)"
+              style="cursor: pointer"
+              @error="$event.target.src = 'https://placehold.co/100x100?text=No+Image'"
+            />
 
             <div class="report-info">
               <div class="report-header">
@@ -58,7 +90,11 @@
                   {{ getStatusLabel(report.status) }}
                 </span>
 
-                <button class="btn-view" @click="viewReportDetails(report)" title="ดูรายละเอียด">
+                <button
+                  class="btn-view"
+                  @click="viewReportDetails(report)"
+                  title="ดูรายละเอียด"
+                >
                   <i class="bi bi-eye-fill"></i>
                 </button>
               </div>
@@ -78,19 +114,31 @@
             <p>ไม่พบรายการแจ้งปัญหา</p>
           </div>
 
-          <div class="pagination-container" v-if="totalPages > 0">
-            <button class="page-btn nav-btn" :disabled="currentPage === 1" @click="changePage(currentPage - 1)">
-              &lt;
+          <div class="pagination-container" v-if="totalPages > 1">
+            <button
+              class="page-btn nav-btn"
+              :disabled="currentPage === 1"
+              @click="changePage(currentPage - 1)"
+            >
+              <i class="bi bi-chevron-left"></i>
             </button>
 
-            <button v-for="page in totalPages" :key="page" class="page-btn number-btn"
-              :class="{ active: currentPage === page }" @click="changePage(page)">
+            <button
+              v-for="page in totalPages"
+              :key="page"
+              class="page-btn number-btn"
+              :class="{ active: currentPage === page }"
+              @click="changePage(page)"
+            >
               {{ page }}
             </button>
 
-            <button class="page-btn nav-btn" :disabled="currentPage === totalPages"
-              @click="changePage(currentPage + 1)">
-              &gt;
+            <button
+              class="page-btn nav-btn"
+              :disabled="currentPage === totalPages"
+              @click="changePage(currentPage + 1)"
+            >
+              <i class="bi bi-chevron-right"></i>
             </button>
           </div>
         </div>
@@ -102,12 +150,14 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from "vue";
+import { ref, onMounted, computed, watch } from "vue";
 import { useRouter } from "vue-router";
 import axios from "axios";
 import Swal from "sweetalert2";
 
 const router = useRouter();
+const API_URL = import.meta.env.VITE_API_BASE_URL; // ✅ ใช้ตัวแปรจาก .env
+
 const userName = ref("Guest");
 const reports = ref([]);
 const loading = ref(false);
@@ -116,19 +166,28 @@ const selectedCategory = ref("all");
 
 const currentPage = ref(1);
 const totalPages = ref(1);
+const itemsPerPage = 6;
 
 const menuItems = [
   { id: "home", label: "หน้าหลัก" },
   { id: "report", label: "แจ้งปัญหา" },
 ];
 
+// ✅ ฟังก์ชันจัดการ URL รูปภาพ (ใช้กลาง)
+const getImageUrl = (path) => {
+  if (!path) return "/no-image.png";
+  if (path.startsWith("http")) return path; // รูปจาก Google/Facebook
+  const baseUrl = API_URL.replace("/api", ""); // ตัด /api ออก
+  return `${baseUrl}${path}`;
+};
+
 const userImage = computed(() => {
-  const userStr = localStorage.getItem('user');
+  const userStr = localStorage.getItem("user");
   if (userStr) {
     const user = JSON.parse(userStr);
-    return user.image_url ? `http://localhost:3000${user.image_url}` : '/admin-profile.png';
+    return user.image_url ? getImageUrl(user.image_url) : "/admin-profile.png";
   }
-  return '/admin-profile.png';
+  return "/admin-profile.png";
 });
 
 onMounted(async () => {
@@ -144,19 +203,37 @@ const fetchReports = async (page = 1) => {
   try {
     const token = localStorage.getItem("token");
 
-    const response = await axios.get(`${import.meta.env.VITE_API_BASE_URL}/users`, {
+    // ✅ เรียก API กลาง
+    const response = await axios.get(`${API_URL}/admin/reports`, {
+      // ใช้ Endpoint นี้ได้เพราะคืนค่าเหมือนกัน
       headers: { Authorization: `Bearer ${token}` },
-      params: {
-        page: page,
-        limit: 6,
-        search: searchText.value,
-        status: selectedCategory.value,
-      },
     });
 
-    reports.value = response.data.data;
-    currentPage.value = response.data.currentPage;
-    totalPages.value = response.data.totalPages;
+    // ✅ กรองข้อมูลฝั่ง Client (ถ้า Backend ยังไม่ทำ Search)
+    let allReports = response.data;
+
+    // 1. กรองตามสถานะ
+    if (selectedCategory.value !== "all") {
+      allReports = allReports.filter((r) => r.status === selectedCategory.value);
+    }
+
+    // 2. กรองตามคำค้นหา
+    if (searchText.value) {
+      const query = searchText.value.toLowerCase();
+      allReports = allReports.filter(
+        (r) =>
+          (r.title && r.title.toLowerCase().includes(query)) ||
+          (r.description && r.description.toLowerCase().includes(query))
+      );
+    }
+
+    // 3. ทำ Pagination ฝั่ง Client
+    totalPages.value = Math.ceil(allReports.length / itemsPerPage);
+    const start = (page - 1) * itemsPerPage;
+    const end = start + itemsPerPage;
+
+    reports.value = allReports.slice(start, end);
+    currentPage.value = page;
   } catch (err) {
     console.error("Error fetching reports:", err);
     if (err.response && err.response.status === 401) {
@@ -167,7 +244,6 @@ const fetchReports = async (page = 1) => {
   }
 };
 
-// ✅ ฟังก์ชันแสดง Popup รายละเอียด (ตกแต่งใหม่ตามรูป)
 const viewReportDetails = (report) => {
   const mapLink = `https://www.google.com/maps/search/?api=1&query=${report.latitude},${report.longitude}`;
 
@@ -175,19 +251,25 @@ const viewReportDetails = (report) => {
     title: `<h3 style="color:#333; margin-bottom:5px;">${report.title}</h3>`,
     html: `
       <div style="text-align: left; font-size: 0.95rem; color:#555;">
-        
         <div style="margin-bottom: 15px; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 10px rgba(0,0,0,0.1);">
-          <img src="${report.image_url ? 'http://localhost:3000' + report.image_url : '/no-image.png'}" 
-               style="width:100%; max-height:280px; object-fit:cover; display:block;">
+          <img src="${getImageUrl(report.image_url)}" 
+               style="width:100%; max-height:280px; object-fit:cover; display:block;"
+               onerror="this.src='/no-image.png'">
         </div>
-
         <div style="background-color: #f8f9fa; padding: 15px; border-radius: 10px; margin-bottom: 15px; border: 1px solid #eee;">
-          <p style="margin: 5px 0;"><strong>👤 ผู้แจ้ง:</strong> ${report.username || 'ไม่ระบุ'}</p>
-          <p style="margin: 5px 0;"><strong>📞 เบอร์โทร:</strong> ${report.contact || '-'}</p>
-          <p style="margin: 5px 0;"><strong>📝 รายละเอียด:</strong><br>${report.description}</p>
-          <p style="margin: 5px 0;"><strong>📍 พิกัด:</strong> ${report.latitude || '-'}, ${report.longitude || '-'}</p>
+          <p style="margin: 5px 0;"><strong>👤 ผู้แจ้ง:</strong> ${
+            report.username || "ไม่ระบุ"
+          }</p>
+          <p style="margin: 5px 0;"><strong>📞 เบอร์โทร:</strong> ${
+            report.contact || "-"
+          }</p>
+          <p style="margin: 5px 0;"><strong>📝 รายละเอียด:</strong><br>${
+            report.description
+          }</p>
+          <p style="margin: 5px 0;"><strong>📍 พิกัด:</strong> ${
+            report.latitude || "-"
+          }, ${report.longitude || "-"}</p>
         </div>
-
         <a href="${mapLink}" target="_blank" 
            style="display: flex; align-items: center; justify-content: center; gap: 8px; 
                   background-color: #4285F4; color: white; text-decoration: none; 
@@ -195,16 +277,12 @@ const viewReportDetails = (report) => {
                   box-shadow: 0 4px 6px rgba(66, 133, 244, 0.3); transition: 0.2s;">
           <i class="bi bi-geo-alt-fill"></i> เปิดใน Google Maps
         </a>
-
       </div>
     `,
-    showConfirmButton: false, // ซ่อนปุ่ม OK เดิม
-    showCloseButton: true, // ปุ่มกากบาทมุมขวาบน
-    customClass: {
-      popup: 'custom-swal-popup' // เพิ่มคลาสเผื่อปรับแต่ง CSS เพิ่มเติม
-    },
-    width: '500px',
-    padding: '20px'
+    showConfirmButton: false,
+    showCloseButton: true,
+    width: "500px",
+    padding: "20px",
   });
 };
 
@@ -246,20 +324,30 @@ const formatTime = (dateString) => {
     minute: "2-digit",
   });
 };
+
 const openNewReport = () => {
   router.push("/reportpage");
 };
-
 const handleMenuClick = (menuId) => {
   if (menuId === "home") fetchReports(1);
   else if (menuId === "report") router.push("/reportpage");
 };
 
 const handleLogout = () => {
-  if (confirm("ออกจากระบบ?")) {
-    localStorage.clear();
-    router.push("/login");
-  }
+  Swal.fire({
+    title: "ยืนยันการออกจากระบบ?",
+    icon: "warning",
+    showCancelButton: true,
+    confirmButtonColor: "#3085d6",
+    cancelButtonColor: "#d33",
+    confirmButtonText: "ใช่, ออกจากระบบ",
+    cancelButtonText: "ยกเลิก",
+  }).then((result) => {
+    if (result.isConfirmed) {
+      localStorage.clear();
+      router.push("/login");
+    }
+  });
 };
 </script>
 
@@ -269,9 +357,6 @@ const handleLogout = () => {
   --secondary-green: #5c9454;
   --bg-light: #e8f5e9;
   --text-dark: #333;
-  --status-pending: #fff3cd;
-  --status-progress: #cff4fc;
-  --status-done: #d1e7dd;
 }
 
 * {
@@ -292,7 +377,7 @@ const handleLogout = () => {
 
 /* Header */
 .header {
-  background-color: var(--primary-green);
+  background-color: #2e5936;
   color: white;
   padding: 15px 20px;
   display: flex;
@@ -307,11 +392,9 @@ const handleLogout = () => {
   gap: 10px;
   transition: opacity 0.2s;
 }
-
 .user-profile:hover {
   opacity: 0.8;
 }
-
 .user-profile img {
   width: 40px;
   height: 40px;
@@ -330,7 +413,6 @@ const handleLogout = () => {
   font-weight: 600;
   transition: 0.2s;
 }
-
 .logout-btn:hover {
   background-color: #ccc;
 }
@@ -355,19 +437,16 @@ const handleLogout = () => {
   flex-direction: column;
   gap: 15px;
 }
-
 .banner-box {
   background-color: white;
   border-radius: 15px;
   overflow: hidden;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
 }
-
 .banner-box img {
   width: 100%;
   display: block;
 }
-
 .nav-menu {
   background-color: white;
   border-radius: 15px;
@@ -377,7 +456,6 @@ const handleLogout = () => {
   gap: 10px;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
 }
-
 .menu-btn {
   background-color: #eee;
   border: 1px solid #ccc;
@@ -389,7 +467,6 @@ const handleLogout = () => {
   transition: 0.2s;
   font-family: "Kanit", sans-serif;
 }
-
 .menu-btn:hover {
   background-color: #e0e0e0;
 }
@@ -406,16 +483,13 @@ const handleLogout = () => {
   flex-direction: column;
   overflow-y: auto;
 }
-
 .banner-top {
-  width: 881px;
-  height: 154px;
-  max-width: 100%;
+  width: 100%;
+  height: 150px;
   margin-bottom: 20px;
   border-radius: 10px;
   overflow: hidden;
 }
-
 .banner-top img {
   width: 100%;
   height: 100%;
@@ -433,7 +507,6 @@ const handleLogout = () => {
   border: 1px solid #ddd;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
 }
-
 .search-input {
   flex-grow: 1;
   padding: 10px 15px;
@@ -442,14 +515,7 @@ const handleLogout = () => {
   outline: none;
   font-family: "Kanit", sans-serif;
   background-color: #f9f9f9;
-  transition: border-color 0.2s;
 }
-
-.search-input:focus {
-  border-color: #2e5936;
-  background-color: white;
-}
-
 .category-select {
   padding: 10px 15px;
   border-radius: 8px;
@@ -457,11 +523,6 @@ const handleLogout = () => {
   background-color: #f9f9f9;
   cursor: pointer;
   font-family: "Kanit", sans-serif;
-  transition: border-color 0.2s;
-}
-
-.category-select:focus {
-  border-color: #2e5936;
 }
 
 /* Report List */
@@ -473,7 +534,6 @@ const handleLogout = () => {
   overflow-y: auto;
   padding-right: 5px;
 }
-
 .report-card {
   border: 1px solid #ddd;
   border-radius: 15px;
@@ -484,12 +544,10 @@ const handleLogout = () => {
   transition: transform 0.2s;
   background: #fff;
 }
-
 .report-card:hover {
   transform: translateY(-2px);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
-
 .report-img {
   width: 100px;
   height: 100px;
@@ -499,25 +557,20 @@ const handleLogout = () => {
   flex-shrink: 0;
   border: 1px solid #eee;
 }
-
 .report-info {
   flex-grow: 1;
 }
-
 .report-header {
   display: flex;
   justify-content: space-between;
-  align-items: flex-start;
   margin-bottom: 5px;
 }
-
 .report-title {
   font-size: 1.2rem;
   font-weight: bold;
   color: #333;
   margin: 0 0 5px 0;
 }
-
 .report-desc {
   font-size: 0.95rem;
   color: #666;
@@ -527,7 +580,6 @@ const handleLogout = () => {
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
-
 .status-badge {
   display: inline-block;
   padding: 4px 12px;
@@ -535,17 +587,14 @@ const handleLogout = () => {
   font-size: 0.8rem;
   font-weight: bold;
 }
-
 .status-pending {
   background-color: #fff3cd;
   color: #856404;
 }
-
 .status-progress {
   background-color: #cff4fc;
   color: #055160;
 }
-
 .status-done {
   background-color: #d1e7dd;
   color: #0f5132;
@@ -571,7 +620,6 @@ const handleLogout = () => {
   padding: 0;
   margin-left: 10px;
 }
-
 .btn-view:hover {
   transform: scale(1.1);
   color: #1b3820;
@@ -587,7 +635,6 @@ const handleLogout = () => {
   padding: 10px;
   padding-bottom: 20px;
 }
-
 .page-btn {
   width: 40px;
   height: 40px;
@@ -596,40 +643,27 @@ const handleLogout = () => {
   background: white;
   color: black;
   cursor: pointer;
-  font-family: "Kanit", sans-serif;
+  font-family: "Kanit";
   font-weight: 600;
-  font-size: 16px;
-  transition: all 0.2s;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  transition: all 0.2s;
 }
-
 .page-btn:hover:not(:disabled) {
   background-color: #f0f0f0;
   transform: translateY(-2px);
 }
-
 .page-btn.active {
   background-color: #2e5936;
   color: white;
   border-color: #2e5936;
   transform: scale(1.1);
-  box-shadow: 0 4px 8px rgba(46, 89, 54, 0.2);
 }
-
 .page-btn:disabled {
   background-color: #f9f9f9;
   color: #ccc;
   cursor: not-allowed;
-  box-shadow: none;
-  border: 1px solid #eee;
-}
-
-.nav-btn {
-  font-size: 18px;
-  color: black;
 }
 
 /* FAB */
@@ -652,9 +686,32 @@ const handleLogout = () => {
   transition: 0.3s;
   z-index: 99;
 }
-
 .fab:hover {
   transform: scale(1.1);
+}
+
+/* Loading Spinner */
+.loading-spinner {
+  border: 4px solid rgba(0, 0, 0, 0.1);
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border-left-color: #2e5936;
+  animation: spin 1s linear infinite;
+  margin: 0 auto;
+}
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+.loading-text {
+  margin-top: 10px;
+  color: #666;
+  font-weight: bold;
 }
 
 /* Responsive */
@@ -663,35 +720,28 @@ const handleLogout = () => {
     flex-direction: column;
     margin: 10px auto;
   }
-
   .sidebar {
     width: 100%;
   }
-
   .nav-menu {
     flex-direction: row;
     flex-wrap: wrap;
   }
-
   .menu-btn {
     flex: 1;
     min-width: 45%;
   }
-
   .fab {
     bottom: 20px;
     right: 20px;
   }
-
   .report-card {
     flex-direction: column;
   }
-
   .report-img {
     width: 100%;
     height: 150px;
   }
-
   .report-meta {
     text-align: left;
     flex-direction: row;

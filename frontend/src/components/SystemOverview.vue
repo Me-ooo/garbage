@@ -42,19 +42,22 @@
           </button>
 
           <div class="spacer"></div>
-
           
+          <button class="menu-btn back-home-btn" @click="goToHome">
+            <i class="bi bi-house-fill"></i> กลับหน้าหลัก
+          </button>
         </div>
       </aside>
 
       <main class="main-content">
         <div class="content-header">
           <h2>📊 ภาพรวมทั้งหมด</h2>
-          <p></p>
+          <p>สรุปสถิติและสถานะการดำเนินงานในระบบ</p>
         </div>
 
         <div v-if="loading" class="text-center mt-5">
           <div class="spinner-border text-success" role="status"></div>
+          <p class="mt-2 text-muted">กำลังประมวลผลข้อมูล...</p>
         </div>
 
         <div v-else>
@@ -62,6 +65,7 @@
             :totalUsers="users.length"
             :totalReports="reports.length"
             :pendingReports="pendingCount"
+            :resolvedReports="resolvedCount"
           />
 
           <div class="summary-section mt-4">
@@ -105,34 +109,37 @@
 import { ref, onMounted, computed } from "vue";
 import axios from "axios";
 import { useRouter } from "vue-router";
-import AdminStats from "./AdminStats.vue";
+import AdminStats from "./AdminStats.vue"; // ตรวจสอบ path ให้ถูกต้อง
 
 const router = useRouter();
+const API_URL = import.meta.env.VITE_API_BASE_URL;
+
 const reports = ref([]);
 const users = ref([]);
 const loading = ref(false);
 const userName = ref("Admin");
 
+// ✅ ฟังก์ชันจัดการ URL รูปภาพ
+const getImageUrl = (path) => {
+  if (!path) return '';
+  if (path.startsWith('http')) return path;
+  const baseUrl = API_URL.replace('/api', '');
+  return `${baseUrl}${path}`;
+};
+
 const userImage = computed(() => {
   const userStr = localStorage.getItem("user");
   if (userStr) {
     const user = JSON.parse(userStr);
-    return user.image_url
-      ? `http://localhost:3000${user.image_url}`
-      : "/admin-profile.png";
+    return user.image_url ? getImageUrl(user.image_url) : "/admin-profile.png";
   }
   return "/admin-profile.png";
 });
 
-const pendingCount = computed(
-  () => reports.value.filter((r) => r.status === "pending").length
-);
-const resolvedCount = computed(
-  () => reports.value.filter((r) => r.status === "resolved").length
-);
-const progressCount = computed(
-  () => reports.value.filter((r) => r.status === "in_progress").length
-);
+// ✅ Computed Properties สำหรับคำนวณตัวเลข
+const pendingCount = computed(() => reports.value.filter((r) => r.status === "pending").length);
+const resolvedCount = computed(() => reports.value.filter((r) => r.status === "resolved").length);
+const progressCount = computed(() => reports.value.filter((r) => r.status === "in_progress").length);
 
 const fetchData = async () => {
   loading.value = true;
@@ -140,20 +147,32 @@ const fetchData = async () => {
     const token = localStorage.getItem("token");
     const config = { headers: { Authorization: `Bearer ${token}` } };
 
+    // ✅ แก้ไข: เรียก API 2 ตัวพร้อมกัน (Users และ Reports)
     const [reportsRes, usersRes] = await Promise.all([
-      axios.get(`${import.meta.env.VITE_API_BASE_URL}/users`)
+      axios.get(`${API_URL}/admin/reports`, config),
+      axios.get(`${API_URL}/users`, config)
     ]);
 
     reports.value = reportsRes.data;
     users.value = usersRes.data;
+
   } catch (err) {
-    if (err.response?.status === 401) router.push("/login");
+    console.error("Fetch Error:", err);
+    if (err.response?.status === 401) {
+      router.push("/login");
+    }
+  } finally {
+    loading.value = false;
   }
-  loading.value = false;
 };
 
-const goToAdmin = (tab) => {
-  router.push("/admin");
+// ✅ ส่ง Query Param ไปด้วย เพื่อให้ AdminDashboard เปิดถูกแท็บ
+const goToAdmin = (tabName) => {
+  router.push({ path: '/admin', query: { tab: tabName } });
+};
+
+const goToHome = () => {
+  router.push('/');
 };
 
 const logout = () => {
@@ -266,7 +285,7 @@ onMounted(() => {
   align-items: center;
   gap: 10px;
   border: 1px solid transparent;
-  background: #f8f9fa; /* Default background */
+  background: #f8f9fa;
   color: #555;
 }
 
@@ -279,7 +298,6 @@ onMounted(() => {
   text-align: center;
 }
 
-/* ✅ 1. แก้ไขปุ่ม Active ให้เป็นสีเขียว */
 .active-btn {
   background-color: #2e5936 !important;
   color: white !important;
@@ -322,7 +340,7 @@ onMounted(() => {
   color: #888;
 }
 
-/* ✅ 2. ปรับขนาด Summary Cards ให้ใหญ่สะใจ */
+/* Summary Cards */
 .summary-section {
   background: #fdfdfd;
   padding: 30px;
@@ -340,20 +358,19 @@ onMounted(() => {
 
 .summary-grid {
   display: grid;
-  /* ปรับ minmax ให้กว้างขึ้น */
-  grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
   gap: 30px;
 }
 
 .summary-card {
-  padding: 40px 30px; /* เพิ่ม Padding */
+  padding: 40px 30px;
   border-radius: 25px;
   color: white;
   display: flex;
   align-items: center;
   box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
   transition: transform 0.2s;
-  min-height: 180px; /* เพิ่มความสูง */
+  min-height: 180px;
 }
 .summary-card:hover {
   transform: translateY(-8px);
@@ -368,7 +385,7 @@ onMounted(() => {
 }
 
 .card-icon {
-  font-size: 4rem; /* ไอคอนใหญ่ */
+  font-size: 4rem;
   background: rgba(255, 255, 255, 0.25);
   width: 100px;
   height: 100px;
@@ -395,7 +412,7 @@ onMounted(() => {
   font-size: 4.5rem;
   font-weight: bold;
   line-height: 1;
-} /* ตัวเลขใหญ่ยักษ์ */
+}
 .unit {
   font-size: 1.2rem;
   font-weight: normal;

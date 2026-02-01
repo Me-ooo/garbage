@@ -1,48 +1,66 @@
 const express = require('express');
-const router = express.Router(); // ✅ ต้องมีบรรทัดนี้
+const router = express.Router();
 const db = require('../config/db');
 const jwt = require('jsonwebtoken');
-const bcrypt = require('bcryptjs'); // ถ้าไม่ได้ใช้ bcrypt ให้ลบบรรทัดนี้ออก แต่แนะนำให้มี
+const bcrypt = require('bcryptjs');
 
-const secretKey = 'secret_key'; // ควรเก็บใน .env แต่ใส่ตรงนี้เพื่อความง่าย
+// ควรเก็บใน .env แต่ใส่ตรงนี้เพื่อความง่ายในการทดสอบ
+const secretKey = 'secret_key'; 
 
 // ==========================================
-// ✅ 1. Register (สมัครสมาชิกปกติ)
+// ✅ 1. Register (สมัครสมาชิก) - ปรับเป็น Async/Await
 // ==========================================
-router.post('/register', (req, res) => {
-    const { fullname, phone, email, password } = req.body;
+router.post('/register', async (req, res) => {
+    try {
+        const { fullname, phone, email, password } = req.body;
 
-    // เช็คว่ามีอีเมลนี้หรือยัง
-    db.query('SELECT * FROM users WHERE email = ?', [email], (err, results) => {
-        if (err) return res.status(500).json({ error: err.message });
-        if (results.length > 0) return res.status(400).json({ message: 'อีเมลนี้ถูกใช้งานแล้ว' });
+        // 1. เช็คว่ามีอีเมลนี้หรือยัง
+        const [existingUsers] = await db.promise().query('SELECT * FROM users WHERE email = ?', [email]);
+        if (existingUsers.length > 0) {
+            return res.status(400).json({ message: 'อีเมลนี้ถูกใช้งานแล้ว' });
+        }
 
-        // เพิ่ม User ใหม่
-        // หมายเหตุ: ในการใช้งานจริงควร Hash Password ด้วย bcrypt
+        // 2. เข้ารหัสรหัสผ่าน (Hash) เพื่อความปลอดภัยและให้ตรงกับมาตรฐาน
+        const hashedPassword = await bcrypt.hash(password, 10);
+
+        // 3. เพิ่ม User ใหม่
         const sql = 'INSERT INTO users (fullname, phone, email, password, role) VALUES (?, ?, ?, ?, "user")';
-        db.query(sql, [fullname, phone, email, password], (err, result) => {
-            if (err) return res.status(500).json({ error: err.message });
-            res.status(201).json({ message: 'สมัครสมาชิกสำเร็จ' });
-        });
-    });
+        await db.promise().query(sql, [fullname, phone, email, hashedPassword]);
+
+        res.status(201).json({ message: 'สมัครสมาชิกสำเร็จ' });
+
+    } catch (err) {
+        console.error('Register Error:', err);
+        res.status(500).json({ error: err.message });
+    }
 });
 
 // ==========================================
-// ✅ 2. Login (เข้าสู่ระบบปกติ)
+// ✅ 2. Login (เข้าสู่ระบบ) - รองรับ Bcrypt
 // ==========================================
-router.post('/login', (req, res) => {
-    const { email, password } = req.body;
+router.post('/login', async (req, res) => {
+    try {
+        const { email, password } = req.body;
 
-    db.query('SELECT * FROM users WHERE email = ?', [email], (err, results) => {
-        if (err) return res.status(500).json({ error: err.message });
+        // 1. ค้นหา User
+        const [users] = await db.promise().query('SELECT * FROM users WHERE email = ?', [email]);
         
-        // ถ้าไม่เจอ User หรือ รหัสผ่านไม่ตรง
-        if (results.length === 0 || results[0].password !== password) {
+        // ถ้าไม่เจอ User
+        if (users.length === 0) {
             return res.status(401).json({ message: 'ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง' });
         }
 
-        const user = results[0];
-        // สร้าง Token
+        const user = users[0];
+
+        // 2. ตรวจสอบรหัสผ่าน (ใช้ bcrypt.compare)
+        // เพื่อให้รองรับทั้ง User ที่สร้างจาก seed.js (ที่ถูก Hash) และ User ใหม่
+        const isMatch = await bcrypt.compare(password, user.password);
+
+        if (!isMatch) {
+            return res.status(401).json({ message: 'ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง' });
+        }
+
+        // 3. สร้าง Token
         const token = jwt.sign(
             { id: user.id, email: user.email, role: user.role }, 
             secretKey, 
@@ -50,37 +68,42 @@ router.post('/login', (req, res) => {
         );
 
         res.json({ message: 'เข้าสู่ระบบสำเร็จ', token, user });
-    });
+
+    } catch (err) {
+        console.error('Login Error:', err);
+        res.status(500).json({ error: err.message });
+    }
 });
 
 // ==========================================
-// ✅ 3. Login Google/Facebook (แบบจำลอง/Mock)
+// ✅ 3. Login Google/Facebook (Mock)
 // ==========================================
-router.post('/google-login-simple', (req, res) => {
-    const { email, name } = req.body;
+router.post('/google-login-simple', async (req, res) => {
+    try {
+        const { email, name } = req.body;
 
-    // เช็คว่ามี User นี้ในระบบไหม
-    db.query('SELECT * FROM users WHERE email = ?', [email], (err, results) => {
-        if (err) return res.status(500).json({ error: err.message });
+        // เช็คว่ามี User นี้ในระบบไหม
+        const [users] = await db.promise().query('SELECT * FROM users WHERE email = ?', [email]);
 
-        if (results.length > 0) {
+        if (users.length > 0) {
             // A. มีแล้ว -> Login เลย
-            const user = results[0];
+            const user = users[0];
             const token = jwt.sign({ id: user.id, email: user.email, role: user.role }, secretKey, { expiresIn: '1h' });
             res.json({ message: 'Mock Login OK', token, user });
         } else {
-            // B. ยังไม่มี -> สมัครใหม่ให้อัตโนมัติ
-            // Password ให้เป็น NULL หรือค่าว่างไว้ เพราะล็อกอินผ่าน Social
+            // B. ยังไม่มี -> สมัครใหม่ให้อัตโนมัติ (ไม่ต้องใส่ Password)
             const sqlInsert = 'INSERT INTO users (fullname, email, role, password) VALUES (?, ?, ?, NULL)';
-            db.query(sqlInsert, [name, email, 'user'], (err, result) => {
-                if (err) return res.status(500).json({ error: err.message });
-                
-                const newUser = { id: result.insertId, email, role: 'user', fullname: name };
-                const token = jwt.sign({ id: newUser.id, email: newUser.email, role: 'user' }, secretKey, { expiresIn: '1h' });
-                res.json({ message: 'Mock Register OK', token, user: newUser });
-            });
+            const [result] = await db.promise().query(sqlInsert, [name, email, 'user']);
+            
+            const newUser = { id: result.insertId, email, role: 'user', fullname: name };
+            const token = jwt.sign({ id: newUser.id, email: newUser.email, role: 'user' }, secretKey, { expiresIn: '1h' });
+            
+            res.json({ message: 'Mock Register OK', token, user: newUser });
         }
-    });
+    } catch (err) {
+        console.error('Google Login Error:', err);
+        res.status(500).json({ error: err.message });
+    }
 });
 
-module.exports = router; // ✅ สำคัญมาก! ต้องส่งออก router เพื่อให้ server.js เอาไปใช้
+module.exports = router;

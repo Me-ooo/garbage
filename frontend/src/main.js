@@ -1,15 +1,33 @@
 import { createApp } from 'vue'
+import App from './App.vue'
+import router from './router'
+
+// ==============================
+// 🎨 Import CSS Frameworks & Icons
+// ==============================
 import 'bootstrap/dist/css/bootstrap.min.css'
 import 'bootstrap-icons/font/bootstrap-icons.css'
-import 'leaflet/dist/leaflet.css'
-import './style.css'
-import App from './App.vue'
-import router from './router' // หรือ './router/index.js'
+import 'leaflet/dist/leaflet.css' // สำหรับแผนที่
+import './style.css' // CSS ของเราเอง (ต้องอยู่ล่างสุดเพื่อทับตัวอื่น)
+
+// ==============================
+// 🔑 Google Login Plugin
+// ==============================
 import vue3GoogleLogin from 'vue3-google-login'
 
 const app = createApp(App)
+
+// 1. ใช้งาน Router
+app.use(router)
+
+// 2. ตั้งค่า Google Login
+// ดึงค่าจาก .env หรือถ้าไม่มีให้ใช้ค่าว่าง (เพื่อกัน App พังตอนรัน)
+// ถ้าไม่มีค่าใน .env ให้ใช้ข้อความนี้แทน โปรแกรมจะได้ไม่ Error
+const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || 'mock_client_id'
+
 app.use(vue3GoogleLogin, {
-  clientId: 'ใส่_GOOGLE_CLIENT_ID_ของคุณ_ที่นี่.apps.googleusercontent.com'
+  clientId: googleClientId
 })
-app.use(router) // 1. ใส่ Router ให้ App ตัวนี้
-app.mount('#app') // 2. สั่งให้ App ตัวเดิมนี้แสดงผล
+
+// 3. เริ่มทำงาน
+app.mount('#app')

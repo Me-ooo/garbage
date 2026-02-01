@@ -1,68 +1,74 @@
 import { createRouter, createWebHistory } from 'vue-router';
 
+// Import Components
 import Login from '../components/Login.vue';
 import Register from '../components/Register.vue';
-import Profile from '../components/Profile.vue';  
+import Profile from '../components/Profile.vue';
 import Homepage from '../components/Homepage.vue';
 import AdminDashboard from '../components/AdminDashboard.vue';
-import reportimage from '../components/reportimage.vue';
-import Reportpage from '../components/Reportpage.vue';
-import SystemOverview  from '../components/SystemOverview.vue';
+import ReportPage from '../components/Reportpage.vue';
+import SystemOverview from '../components/SystemOverview.vue';
 
-const router = createRouter({
-  history: createWebHistory('/garbage/'),
-  routes: [
-    {
-      path: '/',
-      name: 'homepage',
-      component: Homepage
-    },
-    {
-      path: '/login',
-      name: 'login',
-      component: Login
-    },
-    {
-      path: '/register',
-      name: 'register',
-      component: Register
-    },
-    // ❌ ลบ Route /dashboard ออกแล้ว เพราะเราใช้ AdminDashboard แทน
-    {
-      path: '/admin',
-      name: 'admin',
-      component: AdminDashboard,
-      meta: { requiresAuth: true, requiresAdmin: true } // ✅ ต้องเป็น Admin เท่านั้น
-    },
-    {
-      path: '/reportimage',
-      name: 'reportimage',
-      component: reportimage,
-      meta: { requiresAuth: true }
-    },
-    {
-      path: '/reportpage',
-      name: 'reportpage',
-      component: Reportpage,
-      meta: { requiresAuth: true }
-    },
-    {
-      path: '/profile',
-      name: 'profile',
-      component: Profile,
-      meta: { requiresAuth: true }
-    },
-    {
-    path: '/system-overview', // ✅ ตั้งชื่อ Path
+// (Optional) ถ้ายังมีไฟล์นี้อยู่ก็ import เข้ามา
+// import ReportImage from '../components/reportimage.vue'; 
+
+const routes = [
+  {
+    path: '/',
+    name: 'homepage',
+    component: Homepage,
+    meta: { title: 'หน้าหลัก' }
+  },
+  {
+    path: '/login',
+    name: 'login',
+    component: Login,
+    meta: { title: 'เข้าสู่ระบบ' }
+  },
+  {
+    path: '/register',
+    name: 'register',
+    component: Register,
+    meta: { title: 'สมัครสมาชิก' }
+  },
+  {
+    path: '/reportpage',
+    name: 'reportpage',
+    component: ReportPage,
+    meta: { requiresAuth: true, title: 'แจ้งปัญหา' }
+  },
+  {
+    path: '/profile',
+    name: 'profile',
+    component: Profile,
+    meta: { requiresAuth: true, title: 'แก้ไขโปรไฟล์' }
+  },
+  // --- Admin Zone ---
+  {
+    path: '/admin',
+    name: 'admin',
+    component: AdminDashboard,
+    meta: { requiresAuth: true, requiresAdmin: true, title: 'Admin Dashboard' }
+  },
+  {
+    path: '/system-overview',
     name: 'SystemOverview',
     component: SystemOverview,
-    meta: { requiresAuth: true, requiresAdmin: true }// ใส่ role admin 
+    meta: { requiresAuth: true, requiresAdmin: true, title: 'ภาพรวมระบบ' }
   },
-  ]
-})
+];
 
-// ระบบป้องกัน (Navigation Guard)
+const router = createRouter({
+  // ✅ แก้ตรงนี้: เอา '/garbage/' ออก เพื่อให้ใช้บน Vercel ได้ถูกต้อง
+  history: createWebHistory(),
+  routes
+});
+
+// --- Navigation Guard (ระบบป้องกัน) ---
 router.beforeEach((to, from, next) => {
+  // 1. ตั้งชื่อ Title บน Browser Tab
+  document.title = to.meta.title ? `${to.meta.title} - Garbage System` : 'Garbage System';
+
   const token = localStorage.getItem('token');
   
   // แปลง user string เป็น object อย่างปลอดภัย
@@ -73,24 +79,24 @@ router.beforeEach((to, from, next) => {
     user = {};
   }
 
-  // 1. ถ้าหน้านั้นต้องการการล็อกอิน (requiresAuth) แต่ไม่มี Token
+  // 2. ถ้าหน้านั้นต้องการ Login (requiresAuth) แต่ไม่มี Token
   if (to.meta.requiresAuth && !token) {
-    return next('/login'); // กลับไปหน้า Login
+    return next('/login');
   }
 
-  // 2. ถ้าหน้านั้นต้องการ Admin (requiresAdmin) แต่ Role ไม่ใช่ admin
+  // 3. ถ้าหน้านั้นต้องการ Admin (requiresAdmin) แต่ Role ไม่ใช่ admin
   if (to.meta.requiresAdmin && user.role !== 'admin') {
-    alert('คุณไม่มีสิทธิ์เข้าถึงหน้านี้ (สำหรับผู้ดูแลระบบเท่านั้น)');
-    return next('/'); // เด้งกลับหน้า Home
+    alert('⛔ คุณไม่มีสิทธิ์เข้าถึงหน้านี้ (สำหรับผู้ดูแลระบบเท่านั้น)');
+    return next('/');
   }
 
-  // 3. (เพิ่มเติม) ถ้าล็อกอินแล้ว แต่อยู่หน้า Login/Register ให้เด้งเข้าข้างในเลย
+  // 4. ถ้าล็อกอินอยู่แล้ว แต่อยากกลับไปหน้า Login/Register ให้เด้งเข้าข้างในเลย
   if ((to.path === '/login' || to.path === '/register') && token) {
-     if (user.role === 'admin') return next('/admin');
-     return next('/');
+     if (user.role === 'admin') return next('/system-overview'); // Admin ไปหน้าภาพรวม
+     return next('/'); // User ทั่วไปไปหน้าแรก
   }
 
   next(); // อนุญาตให้ไปต่อ
-})
+});
 
 export default router;
