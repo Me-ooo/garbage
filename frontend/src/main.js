@@ -25,9 +25,13 @@ app.use(router)
 // ถ้าไม่มีค่าใน .env ให้ใช้ข้อความนี้แทน โปรแกรมจะได้ไม่ Error
 const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || 'mock_client_id'
 
+if (!googleClientId) {
+  console.warn('⚠️ Warning: Google Client ID is missing!');
+}
 app.use(vue3GoogleLogin, {
   clientId: googleClientId
 })
 
 // 3. เริ่มทำงาน
+app.use(router)
 app.mount('#app')
