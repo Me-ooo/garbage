@@ -8,25 +8,24 @@ const bcrypt = require('bcryptjs');
 const secretKey = 'secret_key'; 
 
 // ==========================================
-// ✅ 1. Register (สมัครสมาชิก) - ปรับเป็น Async/Await
+// ✅ 1. Register (สมัครสมาชิก)
 // ==========================================
 router.post('/register', async (req, res) => {
     try {
         const { fullname, phone, email, password } = req.body;
 
-        // 1. เช็คว่ามีอีเมลนี้หรือยัง
-        // บรรทัดที่ 18 หรือจุดที่ error
-// ตัด .promise() ออก เพราะเราทำมาจากในไฟล์ db.js แล้ว
-        const [rows] = await db.query('SELECT * FROM users WHERE email = ?', [email]);        if (rows.length > 0) {
-        return res.status(400).json({ message: 'อีเมลนี้ถูกใช้งานแล้ว' });
+        // 1. เช็คว่ามีอีเมลนี้หรือยัง (ตัด .promise() ออกแล้ว)
+        const [rows] = await db.query('SELECT * FROM users WHERE email = ?', [email]);
+        if (rows.length > 0) {
+            return res.status(400).json({ message: 'อีเมลนี้ถูกใช้งานแล้ว' });
         }
 
-        // 2. เข้ารหัสรหัสผ่าน (Hash) เพื่อความปลอดภัยและให้ตรงกับมาตรฐาน
+        // 2. เข้ารหัสรหัสผ่าน (Hash)
         const hashedPassword = await bcrypt.hash(password, 10);
 
-        // 3. เพิ่ม User ใหม่
+        // 3. เพิ่ม User ใหม่ (ตัด .promise() ออกแล้ว)
         const sql = 'INSERT INTO users (fullname, phone, email, password, role) VALUES (?, ?, ?, ?, "user")';
-        await db.promise().query(sql, [fullname, phone, email, hashedPassword]);
+        await db.query(sql, [fullname, phone, email, hashedPassword]);
 
         res.status(201).json({ message: 'สมัครสมาชิกสำเร็จ' });
 
@@ -37,26 +36,23 @@ router.post('/register', async (req, res) => {
 });
 
 // ==========================================
-// ✅ 2. Login (เข้าสู่ระบบ) - รองรับ Bcrypt
+// ✅ 2. Login (เข้าสู่ระบบ)
 // ==========================================
 router.post('/login', async (req, res) => {
     try {
         const { email, password } = req.body;
 
-        // 1. ค้นหา User
-        const [users] = await db.promise().query('SELECT * FROM users WHERE email = ?', [email]);
+        // 1. ค้นหา User (ตัด .promise() ออกแล้ว)
+        const [users] = await db.query('SELECT * FROM users WHERE email = ?', [email]);
         
-        // ถ้าไม่เจอ User
         if (users.length === 0) {
             return res.status(401).json({ message: 'ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง' });
         }
 
         const user = users[0];
 
-        // 2. ตรวจสอบรหัสผ่าน (ใช้ bcrypt.compare)
-        // เพื่อให้รองรับทั้ง User ที่สร้างจาก seed.js (ที่ถูก Hash) และ User ใหม่
+        // 2. ตรวจสอบรหัสผ่าน
         const isMatch = await bcrypt.compare(password, user.password);
-
         if (!isMatch) {
             return res.status(401).json({ message: 'ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง' });
         }
@@ -83,18 +79,17 @@ router.post('/google-login-simple', async (req, res) => {
     try {
         const { email, name } = req.body;
 
-        // เช็คว่ามี User นี้ในระบบไหม
-        const [users] = await db.promise().query('SELECT * FROM users WHERE email = ?', [email]);
+        // เช็คว่ามี User นี้ไหม (ตัด .promise() ออกแล้ว)
+        const [users] = await db.query('SELECT * FROM users WHERE email = ?', [email]);
 
         if (users.length > 0) {
-            // A. มีแล้ว -> Login เลย
             const user = users[0];
             const token = jwt.sign({ id: user.id, email: user.email, role: user.role }, secretKey, { expiresIn: '1h' });
             res.json({ message: 'Mock Login OK', token, user });
         } else {
-            // B. ยังไม่มี -> สมัครใหม่ให้อัตโนมัติ (ไม่ต้องใส่ Password)
-            const sqlInsert = 'INSERT INTO users (fullname, email, role, password) VALUES (?, ?, ?, NULL)';
-            const [result] = await db.promise().query(sqlInsert, [name, email, 'user']);
+            // สมัครใหม่ให้อัตโนมัติ (ตัด .promise() ออกแล้ว)
+            const sqlInsert = 'INSERT INTO users (fullname, email, role, password) VALUES (?, ?, ?, "SOCIAL_LOGIN")';
+            const [result] = await db.query(sqlInsert, [name, email, 'user']);
             
             const newUser = { id: result.insertId, email, role: 'user', fullname: name };
             const token = jwt.sign({ id: newUser.id, email: newUser.email, role: 'user' }, secretKey, { expiresIn: '1h' });
