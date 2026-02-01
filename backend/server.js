@@ -8,25 +8,32 @@ require('dotenv').config();
 const authRoutes = require('./routes/auth');
 const reportRoutes = require('./routes/reports');
 const adminRoutes = require('./routes/admin'); 
-const usersRoutes = require('./routes/users'); // ✅ 1. เพิ่มบรรทัดนี้ (นำเข้าไฟล์ users)
+const usersRoutes = require('./routes/users'); 
 
 const app = express();
-const port = 3000;
+
+// ✅ ใช้ PORT จากระบบ (Vercel) หรือใช้ 3000 ถ้าทดสอบในเครื่อง
+const port = process.env.PORT || 3000;
 
 // Middleware
 app.use(cors());
 app.use(bodyParser.json());
 
-// ✅ เปิดให้เข้าถึงโฟลเดอร์ uploads ได้แบบ Static (สำคัญมากสำหรับโชว์รูป)
+// ✅ เปิดให้เข้าถึงโฟลเดอร์ uploads (หมายเหตุ: บน Vercel รูปที่อัปโหลดจะหายไปเมื่อ Server รีเซ็ต)
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
-// Use Routes (เรียกใช้เส้นทางต่างๆ)
-app.use('/api', authRoutes);         // สำหรับ Login/Register
-app.use('/api/reports', reportRoutes); // สำหรับแจ้งปัญหา (User)
-app.use('/api/admin', adminRoutes);  // สำหรับ Admin Dashboard
-app.use('/api/users', usersRoutes);  // ✅ 2. เพิ่มบรรทัดนี้ (สำหรับแก้ไขโปรไฟล์ & ดูรายชื่อผู้ใช้)
+// Use Routes
+app.use('/api', authRoutes); 
+app.use('/api/reports', reportRoutes);
+app.use('/api/admin', adminRoutes); 
+app.use('/api/users', usersRoutes); 
 
-// Start Server
-app.listen(port, () => {
-  console.log(`Backend server running on port ${port}`);
-});
+// ✅ Start Server (แบบรองรับ Vercel)
+if (require.main === module) {
+  app.listen(port, () => {
+    console.log(`Backend server running on port ${port}`);
+  });
+}
+
+// ⭐ บรรทัดนี้สำคัญที่สุดสำหรับ Vercel!
+module.exports = app;
