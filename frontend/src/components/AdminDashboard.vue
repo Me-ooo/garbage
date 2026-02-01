@@ -359,8 +359,7 @@ const fetchData = async () => {
   try {
     const config = getAuthConfig();
     const [reportsRes, usersRes] = await Promise.all([
-      axios.get("http://localhost:3000/api/admin/reports", config),
-      axios.get("http://localhost:3000/api/users", config),
+      axios.get(`${import.meta.env.VITE_API_BASE_URL}/users`)
     ]);
     reports.value = reportsRes.data;
     users.value = usersRes.data;
