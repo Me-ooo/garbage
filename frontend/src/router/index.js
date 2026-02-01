@@ -10,7 +10,7 @@ import Reportpage from '../components/Reportpage.vue';
 import SystemOverview  from '../components/SystemOverview.vue';
 
 const router = createRouter({
-  history: createWebHistory(import.meta.env.BASE_URL),
+  history: createWebHistory('/garbage/'),
   routes: [
     {
       path: '/',
@@ -56,7 +56,7 @@ const router = createRouter({
     path: '/system-overview', // ✅ ตั้งชื่อ Path
     name: 'SystemOverview',
     component: SystemOverview,
-    meta: { requiresAuth: true, role: 'admin' } // ใส่ role admin ด้วยถ้ามีระบบเช็ค
+    meta: { requiresAuth: true, requiresAdmin: true }// ใส่ role admin 
   },
   ]
 })
