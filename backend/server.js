@@ -26,10 +26,10 @@ app.get('/', (req, res) => {
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Use Routes
-app.use('/api', authRoutes); 
-app.use('/api/reports', reportRoutes);
-app.use('/api/admin', adminRoutes); 
-app.use('/api/users', usersRoutes); 
+app.use('/api/auth', authRoutes);     // เข้าถึงผ่าน /api/auth/login หรือ /api/auth/register
+app.use('/api/reports', reportRoutes);  // เข้าถึงผ่าน /api/reports/
+app.use('/api/admin', adminRoutes);    // เข้าถึงผ่าน /api/admin/
+app.use('/api/users', usersRoutes);    // เข้าถึงผ่าน /api/users/
 
 // ✅ Start Server (แบบรองรับ Vercel)
 if (require.main === module) {

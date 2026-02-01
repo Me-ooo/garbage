@@ -10,7 +10,7 @@ const secretKey = 'secret_key';
 // ==========================================
 // ✅ 1. Register (สมัครสมาชิก)
 // ==========================================
-router.post('/register', async (req, res) => {
+router.post('/', async (req, res) => {
     try {
         const { fullname, phone, email, password } = req.body;
 

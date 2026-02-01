@@ -58,7 +58,7 @@ const handleLogin = async () => {
   errorMessage.value = "";
 
   try {
-    const response = await axios.post(`${API_URL}/login`, form.value);
+    const response = await axios.post(`${API_URL}/auth/login`, form.value);
     if (response.status === 200) processLogin(response.data);
   } catch (error) {
     handleError(error);

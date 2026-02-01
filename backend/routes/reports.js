@@ -1,17 +1,14 @@
 const express = require('express');
 const router = express.Router();
-const db = require('../config/db');
+const db = require('../config/db'); // ไฟล์ db.js ที่เป็น pool.promise() แล้ว
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 
 // ==========================================
-// ✅ 1. ตั้งค่าการอัปโหลดไฟล์ (Multer)
+// ✅ 1. ตั้งค่าการอัปโหลดไฟล์รูปภาพขยะ
 // ==========================================
-// ใช้ process.cwd() เพื่อให้หา path เจอแน่นอนเวลาอยู่บน Server
 const uploadDir = path.join(process.cwd(), 'uploads');
-
-// ตรวจสอบว่ามีโฟลเดอร์ uploads หรือไม่ ถ้าไม่มีให้สร้าง
 if (!fs.existsSync(uploadDir)) {
     fs.mkdirSync(uploadDir, { recursive: true });
 }
@@ -21,88 +18,68 @@ const storage = multer.diskStorage({
         cb(null, 'uploads/');
     },
     filename: (req, file, cb) => {
-        // ตั้งชื่อไฟล์: user-{timestamp}.นามสกุลเดิม
-        cb(null, 'user-' + Date.now() + path.extname(file.originalname));
+        cb(null, 'report-' + Date.now() + path.extname(file.originalname));
     }
 });
 
 const upload = multer({ storage: storage });
 
 // ==========================================
-// ✅ 2. ดึงรายชื่อ Users ทั้งหมด (GET)
+// ✅ 2. แจ้งปัญหาใหม่ (POST /api/reports)
 // ==========================================
-router.get('/', async (req, res) => {
+router.post('/', upload.single('image'), async (req, res) => {
     try {
-        // ใช้ .promise() เพื่อให้ใช้ await ได้
-        const sql = 'SELECT id, fullname, email, phone, role, image_url, created_at FROM users ORDER BY created_at DESC';
-        const [results] = await db.promise().query(sql);
-        res.json(results);
-    } catch (err) {
-        console.error('Error fetching users:', err);
-        res.status(500).json({ error: 'เกิดข้อผิดพลาดในการดึงข้อมูลผู้ใช้' });
-    }
-});
-
-// ==========================================
-// ✅ 3. ลบผู้ใช้งาน (DELETE)
-// ==========================================
-router.delete('/:id', async (req, res) => {
-    try {
-        const userId = req.params.id;
-        const sql = 'DELETE FROM users WHERE id = ?';
+        const { title, description, latitude, longitude, contact, user_id } = req.body;
         
-        await db.promise().query(sql, [userId]);
-        
-        res.json({ message: `ลบผู้ใช้ ID ${userId} เรียบร้อยแล้ว` });
-    } catch (err) {
-        console.error('Error deleting user:', err);
-        res.status(500).json({ error: 'ไม่สามารถลบผู้ใช้งานได้' });
-    }
-});
-
-// ==========================================
-// ✅ 4. อัปเดตโปรไฟล์ (PUT)
-// ==========================================
-router.put('/:id', upload.single('image'), async (req, res) => {
-    try {
-        const id = req.params.id;
-        const { fullname, phone } = req.body;
-        
-        // ตรวจสอบว่ามีการอัปโหลดรูปใหม่มาหรือไม่
-        let newImage = null;
+        // จัดการเรื่องรูปภาพ
+        let imageUrl = null;
         if (req.file) {
-            newImage = `/uploads/${req.file.filename}`;
+            imageUrl = `/uploads/${req.file.filename}`;
         }
 
-        let sql = "";
-        let params = [];
+        const sql = `
+            INSERT INTO reports (user_id, title, description, latitude, longitude, contact, image_url, status) 
+            VALUES (?, ?, ?, ?, ?, ?, ?, 'pending')
+        `;
+        
+        const [result] = await db.query(sql, [
+            user_id || null, 
+            title, 
+            description, 
+            latitude, 
+            longitude, 
+            contact, 
+            imageUrl
+        ]);
 
-        if (newImage) {
-            sql = "UPDATE users SET fullname = ?, phone = ?, image_url = ? WHERE id = ?";
-            params = [fullname, phone, newImage, id];
-        } else {
-            sql = "UPDATE users SET fullname = ?, phone = ? WHERE id = ?";
-            params = [fullname, phone, id];
-        }
-
-        // 1. อัปเดตข้อมูล
-        await db.promise().query(sql, params);
-
-        // 2. ดึงข้อมูลล่าสุดส่งกลับไป (เพื่อให้หน้าเว็บอัปเดตทันที)
-        const [rows] = await db.promise().query('SELECT * FROM users WHERE id = ?', [id]);
-
-        if (rows.length === 0) {
-            return res.status(404).json({ error: 'ไม่พบผู้ใช้งาน' });
-        }
-
-        res.json({ 
-            message: 'Update Profile Success', 
-            user: rows[0] 
+        res.status(201).json({ 
+            message: 'ส่งรายงานสำเร็จ!', 
+            reportId: result.insertId 
         });
 
     } catch (err) {
-        console.error('Error updating profile:', err);
-        res.status(500).json({ error: err.message });
+        console.error('Report Error:', err);
+        res.status(500).json({ error: 'ไม่สามารถบันทึกข้อมูลได้: ' + err.message });
+    }
+});
+
+// ==========================================
+// ✅ 3. ดึงรายการแจ้งปัญหาทั้งหมด (GET /api/reports)
+// ==========================================
+router.get('/', async (req, res) => {
+    try {
+        // ดึงข้อมูลพร้อมจอยชื่อผู้แจ้ง (ถ้ามี)
+        const sql = `
+            SELECT r.*, u.fullname as username 
+            FROM reports r 
+            LEFT JOIN users u ON r.user_id = u.id 
+            ORDER BY r.created_at DESC
+        `;
+        const [results] = await db.query(sql);
+        res.json(results);
+    } catch (err) {
+        console.error('Fetch Reports Error:', err);
+        res.status(500).json({ error: 'ดึงข้อมูลไม่สำเร็จ' });
     }
 });
 
