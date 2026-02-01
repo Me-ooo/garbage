@@ -18,6 +18,9 @@ const port = process.env.PORT || 3000;
 // Middleware
 app.use(cors());
 app.use(bodyParser.json());
+app.get('/', (req, res) => {
+  res.send('Backend Server is Running! 🚀');
+});
 
 // ✅ เปิดให้เข้าถึงโฟลเดอร์ uploads (หมายเหตุ: บน Vercel รูปที่อัปโหลดจะหายไปเมื่อ Server รีเซ็ต)
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
