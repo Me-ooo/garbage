@@ -1,12 +1,12 @@
 const mysql = require('mysql2');
 require('dotenv').config();
 
-// ใช้ Connection Pool เพื่อประสิทธิภาพที่ดีบน Vercel (Serverless)
-const db = mysql.createPool({
+// สร้าง Connection Pool (รองรับ TiDB Cloud SSL)
+const pool = mysql.createPool({
   host: process.env.DB_HOST,
   user: process.env.DB_USER,
   password: process.env.DB_PASSWORD,
-  database: process.env.DB_NAME, // เช็คใน Vercel ดีๆ ว่าใส่ชื่อ 'test' หรือ 'garbage_db'
+  database: process.env.DB_NAME,
   port: process.env.DB_PORT || 4000,
   ssl: {
     minVersion: 'TLSv1.2',
@@ -17,14 +17,15 @@ const db = mysql.createPool({
   queueLimit: 0
 });
 
-// Test Connection (จะโชว์ใน Log ของ Vercel)
-db.getConnection((err, connection) => {
+// Test Connection (เช็คว่าเชื่อมต่อได้ไหมตอนเริ่มรัน Server)
+pool.getConnection((err, connection) => {
   if (err) {
-    console.error('❌ Database connecting error: ' + err.stack);
+    console.error('❌ Database Connection Failed:', err.message);
   } else {
-    console.log('✅ Database connected to TiDB Cloud!');
+    console.log('✅ Connected to TiDB Cloud successfully!');
     connection.release();
   }
 });
 
-module.exports = db;
+// ✅ สำคัญ: export เป็น promise() เพื่อให้ใช้ await db.query() ได้
+module.exports = pool.promise();

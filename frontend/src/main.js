@@ -21,17 +21,15 @@ const app = createApp(App)
 app.use(router)
 
 // 2. ตั้งค่า Google Login
-// ดึงค่าจาก .env หรือถ้าไม่มีให้ใช้ค่าว่าง (เพื่อกัน App พังตอนรัน)
-// ถ้าไม่มีค่าใน .env ให้ใช้ข้อความนี้แทน โปรแกรมจะได้ไม่ Error
+// ดึงค่าจาก .env ถ้าไม่มีให้ใช้ 'mock_client_id' เพื่อกัน App พัง
 const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || 'mock_client_id'
 
-if (!googleClientId) {
-  console.warn('⚠️ Warning: Google Client ID is missing!');
-}
+// (Optional) แสดงค่าใน Console เพื่อเช็คว่าอ่าน .env เจอไหม
+console.log('Current Google Client ID:', googleClientId);
+
 app.use(vue3GoogleLogin, {
   clientId: googleClientId
 })
 
 // 3. เริ่มทำงาน
-app.use(router)
 app.mount('#app')

@@ -1,263 +1,174 @@
+<template>
+  <div class="stats-grid">
+    <div class="stat-card users-card">
+      <div class="stat-icon-wrapper">
+        <i class="bi bi-people-fill stat-icon"></i>
+      </div>
+      <div class="stat-content">
+        <h3 class="stat-value">{{ displayedUsers }}</h3>
+        <p class="stat-label">ผู้ใช้งานทั้งหมด</p>
+      </div>
+    </div>
+
+    <div class="stat-card reports-card">
+      <div class="stat-icon-wrapper">
+        <i class="bi bi-file-earmark-text-fill stat-icon"></i>
+      </div>
+      <div class="stat-content">
+        <h3 class="stat-value">{{ displayedReports }}</h3>
+        <p class="stat-label">เรื่องร้องเรียนทั้งหมด</p>
+      </div>
+    </div>
+
+    <div class="stat-card pending-card">
+      <div class="stat-icon-wrapper">
+        <i class="bi bi-clock-history stat-icon"></i>
+      </div>
+      <div class="stat-content">
+        <h3 class="stat-value">{{ displayedPending }}</h3>
+        <p class="stat-label">รอการตรวจสอบ</p>
+      </div>
+    </div>
+
+    <div class="stat-card resolved-card">
+      <div class="stat-icon-wrapper">
+        <i class="bi bi-check-circle-fill stat-icon"></i>
+      </div>
+      <div class="stat-content">
+        <h3 class="stat-value">{{ displayedResolved }}</h3>
+        <p class="stat-label">แก้ไขเสร็จสิ้น</p>
+      </div>
+    </div>
+  </div>
+</template>
+
 <script setup>
-import { defineProps, computed, ref, watch, onMounted } from "vue";
-import gsap from "gsap"; // ถ้าไม่ได้ลง gsap ให้ลบส่วน Animation ออก หรือใช้ CSS แทน
+import { ref, watch, onMounted } from "vue";
 
 const props = defineProps({
   totalUsers: { type: Number, default: 0 },
   totalReports: { type: Number, default: 0 },
   pendingReports: { type: Number, default: 0 },
-  resolvedReports: { type: Number, default: 0 }, // ✅ เพิ่มอันนี้เพื่อความครบถ้วน
+  resolvedReports: { type: Number, default: 0 },
 });
 
-// --- ตัวแปรสำหรับ Animation ตัวเลข ---
-const animatedUsers = ref(0);
-const animatedReports = ref(0);
-const animatedPending = ref(0);
-const animatedResolved = ref(0);
+// ตัวแปรสำหรับแสดงผล (เพื่อทำ Animation)
+const displayedUsers = ref(0);
+const displayedReports = ref(0);
+const displayedPending = ref(0);
+const displayedResolved = ref(0);
 
-// ฟังก์ชันทำให้ตัวเลขวิ่ง (Count Up Animation)
-const animateValue = (targetRef, endValue) => {
-  gsap.to(targetRef, { duration: 1, value: endValue, roundProps: "value", ease: "power2.out" });
+// ฟังก์ชัน Count Up Animation
+const animateValue = (targetRef, start, end, duration) => {
+  if (start === end) return;
+  let startTimestamp = null;
+  const step = (timestamp) => {
+    if (!startTimestamp) startTimestamp = timestamp;
+    const progress = Math.min((timestamp - startTimestamp) / duration, 1);
+    targetRef.value = Math.floor(progress * (end - start) + start);
+    if (progress < 1) {
+      window.requestAnimationFrame(step);
+    }
+  };
+  window.requestAnimationFrame(step);
 };
 
-// เฝ้าดูการเปลี่ยนแปลงของ Props (เมื่อ API โหลดเสร็จ ตัวเลขจะวิ่ง)
-watch(() => props.totalUsers, (newVal) => animateValue(animatedUsers, newVal));
-watch(() => props.totalReports, (newVal) => animateValue(animatedReports, newVal));
-watch(() => props.pendingReports, (newVal) => animateValue(animatedPending, newVal));
-watch(() => props.resolvedReports, (newVal) => animateValue(animatedResolved, newVal));
+// Watch การเปลี่ยนแปลงของ Props แล้วสั่ง Animate
+watch(
+  () => props.totalUsers,
+  (newVal) => animateValue(displayedUsers, 0, newVal, 1000)
+);
+watch(
+  () => props.totalReports,
+  (newVal) => animateValue(displayedReports, 0, newVal, 1000)
+);
+watch(
+  () => props.pendingReports,
+  (newVal) => animateValue(displayedPending, 0, newVal, 1000)
+);
+watch(
+  () => props.resolvedReports,
+  (newVal) => animateValue(displayedResolved, 0, newVal, 1000)
+);
 
-// กรณีข้อมูลมาตั้งแต่เริ่ม
 onMounted(() => {
-  animateValue(animatedUsers, props.totalUsers);
-  animateValue(animatedReports, props.totalReports);
-  animateValue(animatedPending, props.pendingReports);
-  animateValue(animatedResolved, props.resolvedReports);
+  // Initial Animation
+  animateValue(displayedUsers, 0, props.totalUsers, 1000);
+  animateValue(displayedReports, 0, props.totalReports, 1000);
+  animateValue(displayedPending, 0, props.pendingReports, 1000);
+  animateValue(displayedResolved, 0, props.resolvedReports, 1000);
 });
 </script>
 
-<template>
-  <div class="stats-container">
-
-    <div class="stat-card users-card">
-      <div class="stat-content">
-        <div class="stat-text">
-          <p class="stat-label">ผู้ใช้งานทั้งหมด</p>
-          <h3 class="stat-value">{{ animatedUsers }} <span class="unit">คน</span></h3>
-        </div>
-        <div class="stat-icon">
-          <i class="bi bi-people-fill"></i>
-        </div>
-      </div>
-      <div class="stat-footer">
-        <small>Active Users</small>
-      </div>
-    </div>
-
-    <div class="stat-card reports-card">
-      <div class="stat-content">
-        <div class="stat-text">
-          <p class="stat-label">ร้องเรียนทั้งหมด</p>
-          <h3 class="stat-value">{{ animatedReports }} <span class="unit">เรื่อง</span></h3>
-        </div>
-        <div class="stat-icon">
-          <i class="bi bi-file-earmark-text-fill"></i>
-        </div>
-      </div>
-      <div class="stat-footer">
-        <small>Total Reports</small>
-      </div>
-    </div>
-
-    <div class="stat-card pending-card">
-      <div class="stat-content">
-        <div class="stat-text">
-          <p class="stat-label">รอตรวจสอบ</p>
-          <h3 class="stat-value">{{ animatedPending }} <span class="unit">เรื่อง</span></h3>
-        </div>
-        <div class="stat-icon">
-          <i class="bi bi-hourglass-split"></i>
-        </div>
-      </div>
-      <div class="stat-footer">
-        <small>Pending Action</small>
-      </div>
-    </div>
-
-    <div class="stat-card resolved-card">
-      <div class="stat-content">
-        <div class="stat-text">
-          <p class="stat-label">แก้ไขเสร็จสิ้น</p>
-          <h3 class="stat-value">{{ animatedResolved }} <span class="unit">เรื่อง</span></h3>
-        </div>
-        <div class="stat-icon">
-          <i class="bi bi-check-circle-fill"></i>
-        </div>
-      </div>
-      <div class="stat-footer">
-        <small>Completed</small>
-      </div>
-    </div>
-
-  </div>
-</template>
-
 <style scoped>
-.stats-container {
+.stats-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); /* Responsive Grid */
   gap: 20px;
   margin-bottom: 30px;
-  font-family: 'Kanit', sans-serif;
 }
 
 .stat-card {
   background: white;
-  border-radius: 16px;
-  padding: 20px 25px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
-  transition: transform 0.3s ease, box-shadow 0.3s ease;
-  border: 1px solid rgba(0, 0, 0, 0.05);
+  border-radius: 15px;
+  padding: 20px;
   display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  height: 140px;
-  position: relative;
-  overflow: hidden;
+  align-items: center;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+  transition: transform 0.2s, box-shadow 0.2s;
+  border: 1px solid #f0f0f0;
 }
 
 .stat-card:hover {
   transform: translateY(-5px);
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 10px 15px rgba(0, 0, 0, 0.1);
 }
 
-/* เพิ่มวงกลมตกแต่งด้านหลัง */
-.stat-card::after {
-  content: '';
-  position: absolute;
-  top: -20px;
-  right: -20px;
-  width: 100px;
-  height: 100px;
-  border-radius: 50%;
-  opacity: 0.1;
-  z-index: 0;
-}
-
-.stat-content {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  position: relative;
-  z-index: 1;
-}
-
-.stat-label {
-  color: #888;
-  font-size: 0.9rem;
-  margin-bottom: 8px;
-  font-weight: 500;
-}
-
-.stat-value {
-  font-size: 2.2rem;
-  font-weight: 700;
-  margin: 0;
-  color: #333;
-  line-height: 1;
-}
-
-.unit {
-  font-size: 0.9rem;
-  color: #aaa;
-  font-weight: 400;
-  margin-left: 5px;
-}
-
-.stat-icon {
-  width: 50px;
-  height: 50px;
+.stat-icon-wrapper {
+  width: 60px;
+  height: 60px;
   border-radius: 12px;
   display: flex;
   justify-content: center;
   align-items: center;
-  font-size: 1.5rem;
+  margin-right: 20px;
+  font-size: 1.8rem;
 }
 
-.stat-footer {
-  margin-top: auto;
-  font-size: 0.8rem;
-  color: #bbb;
-  position: relative;
-  z-index: 1;
+.stat-content {
+  display: flex;
+  flex-direction: column;
 }
 
-/* --- Themes --- */
-
-/* Users: Primary Green (Brand) */
-.users-card .stat-icon {
-  background: rgba(46, 89, 54, 0.1);
-  color: #2e5936;
+.stat-value {
+  margin: 0;
+  font-size: 2rem;
+  font-weight: 700;
+  color: #333;
+  line-height: 1.2;
 }
 
-.users-card::after {
-  background: #2e5936;
+.stat-label {
+  margin: 0;
+  color: #888;
+  font-size: 0.9rem;
 }
 
-.users-card:hover {
-  border-bottom: 4px solid #2e5936;
+/* Color Themes */
+.users-card .stat-icon-wrapper {
+  background-color: #e8f5e9;
+  color: #2e7d32;
 }
-
-/* Reports: Blue (Info) */
-.reports-card .stat-icon {
-  background: rgba(52, 152, 219, 0.1);
-  color: #3498db;
+.reports-card .stat-icon-wrapper {
+  background-color: #e3f2fd;
+  color: #1976d2;
 }
-
-.reports-card::after {
-  background: #3498db;
+.pending-card .stat-icon-wrapper {
+  background-color: #fff8e1;
+  color: #ffa000;
 }
-
-.reports-card:hover {
-  border-bottom: 4px solid #3498db;
-}
-
-/* Pending: Orange (Warning) */
-.pending-card .stat-icon {
-  background: rgba(243, 156, 18, 0.1);
-  color: #f39c12;
-}
-
-.pending-card::after {
-  background: #f39c12;
-}
-
-.pending-card:hover {
-  border-bottom: 4px solid #f39c12;
-}
-
-/* Resolved: Teal/Green (Success) */
-.resolved-card .stat-icon {
-  background: rgba(26, 188, 156, 0.1);
-  color: #1abc9c;
-}
-
-.resolved-card::after {
-  background: #1abc9c;
-}
-
-.resolved-card:hover {
-  border-bottom: 4px solid #1abc9c;
-}
-
-@media (max-width: 768px) {
-  .stats-container {
-    grid-template-columns: 1fr 1fr;
-  }
-}
-
-@media (max-width: 480px) {
-  .stats-container {
-    grid-template-columns: 1fr;
-  }
+.resolved-card .stat-icon-wrapper {
+  background-color: #f3e5f5; /* สีม่วงอ่อน */
+  color: #7b1fa2; /* สีม่วงเข้ม */
 }
 </style>

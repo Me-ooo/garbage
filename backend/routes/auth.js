@@ -15,9 +15,10 @@ router.post('/register', async (req, res) => {
         const { fullname, phone, email, password } = req.body;
 
         // 1. เช็คว่ามีอีเมลนี้หรือยัง
-        const [existingUsers] = await db.promise().query('SELECT * FROM users WHERE email = ?', [email]);
-        if (existingUsers.length > 0) {
-            return res.status(400).json({ message: 'อีเมลนี้ถูกใช้งานแล้ว' });
+        // บรรทัดที่ 18 หรือจุดที่ error
+// ตัด .promise() ออก เพราะเราทำมาจากในไฟล์ db.js แล้ว
+        const [rows] = await db.query('SELECT * FROM users WHERE email = ?', [email]);        if (rows.length > 0) {
+        return res.status(400).json({ message: 'อีเมลนี้ถูกใช้งานแล้ว' });
         }
 
         // 2. เข้ารหัสรหัสผ่าน (Hash) เพื่อความปลอดภัยและให้ตรงกับมาตรฐาน

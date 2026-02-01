@@ -123,15 +123,17 @@
               <i class="bi bi-chevron-left"></i>
             </button>
 
-            <button
-              v-for="page in totalPages"
-              :key="page"
-              class="page-btn number-btn"
-              :class="{ active: currentPage === page }"
-              @click="changePage(page)"
-            >
-              {{ page }}
-            </button>
+            <template v-for="(page, index) in displayedPages" :key="index">
+              <button
+                v-if="page !== '...'"
+                class="page-btn number-btn"
+                :class="{ active: currentPage === page }"
+                @click="changePage(page)"
+              >
+                {{ page }}
+              </button>
+              <span v-else class="dots">...</span>
+            </template>
 
             <button
               class="page-btn nav-btn"
@@ -150,13 +152,13 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed, watch } from "vue";
+import { ref, onMounted, computed } from "vue";
 import { useRouter } from "vue-router";
 import axios from "axios";
 import Swal from "sweetalert2";
 
 const router = useRouter();
-const API_URL = import.meta.env.VITE_API_BASE_URL; // ✅ ใช้ตัวแปรจาก .env
+const API_URL = import.meta.env.VITE_API_BASE_URL;
 
 const userName = ref("Guest");
 const reports = ref([]);
@@ -173,11 +175,45 @@ const menuItems = [
   { id: "report", label: "แจ้งปัญหา" },
 ];
 
-// ✅ ฟังก์ชันจัดการ URL รูปภาพ (ใช้กลาง)
+// ✅ Logic คำนวณเลขหน้า (1 ... 4 5 6 ... 44)
+const displayedPages = computed(() => {
+  const total = totalPages.value;
+  const current = currentPage.value;
+  const delta = 1; // จำนวนหน้าที่จะโชว์รอบๆ หน้าปัจจุบัน
+  const range = [];
+  const rangeWithDots = [];
+
+  // ถ้าหน้าไม่เยอะ ให้โชว์หมดเลย
+  if (total <= 7) {
+    for (let i = 1; i <= total; i++) range.push(i);
+    return range;
+  }
+
+  // คำนวณช่วงหน้าที่จะแสดง
+  for (let i = 1; i <= total; i++) {
+    if (i === 1 || i === total || (i >= current - delta && i <= current + delta)) {
+      range.push(i);
+    }
+  }
+
+  // ใส่ ... ตรงช่องว่าง
+  let l;
+  for (let i of range) {
+    if (l) {
+      if (i - l === 2) rangeWithDots.push(l + 1);
+      else if (i - l !== 1) rangeWithDots.push("...");
+    }
+    rangeWithDots.push(i);
+    l = i;
+  }
+
+  return rangeWithDots;
+});
+
 const getImageUrl = (path) => {
   if (!path) return "/no-image.png";
-  if (path.startsWith("http")) return path; // รูปจาก Google/Facebook
-  const baseUrl = API_URL.replace("/api", ""); // ตัด /api ออก
+  if (path.startsWith("http")) return path;
+  const baseUrl = API_URL.replace("/api", "");
   return `${baseUrl}${path}`;
 };
 
@@ -202,22 +238,16 @@ const fetchReports = async (page = 1) => {
   loading.value = true;
   try {
     const token = localStorage.getItem("token");
-
-    // ✅ เรียก API กลาง
     const response = await axios.get(`${API_URL}/admin/reports`, {
-      // ใช้ Endpoint นี้ได้เพราะคืนค่าเหมือนกัน
       headers: { Authorization: `Bearer ${token}` },
     });
 
-    // ✅ กรองข้อมูลฝั่ง Client (ถ้า Backend ยังไม่ทำ Search)
     let allReports = response.data;
 
-    // 1. กรองตามสถานะ
     if (selectedCategory.value !== "all") {
       allReports = allReports.filter((r) => r.status === selectedCategory.value);
     }
 
-    // 2. กรองตามคำค้นหา
     if (searchText.value) {
       const query = searchText.value.toLowerCase();
       allReports = allReports.filter(
@@ -227,7 +257,6 @@ const fetchReports = async (page = 1) => {
       );
     }
 
-    // 3. ทำ Pagination ฝั่ง Client
     totalPages.value = Math.ceil(allReports.length / itemsPerPage);
     const start = (page - 1) * itemsPerPage;
     const end = start + itemsPerPage;
@@ -246,15 +275,14 @@ const fetchReports = async (page = 1) => {
 
 const viewReportDetails = (report) => {
   const mapLink = `https://www.google.com/maps/search/?api=1&query=${report.latitude},${report.longitude}`;
-
   Swal.fire({
     title: `<h3 style="color:#333; margin-bottom:5px;">${report.title}</h3>`,
     html: `
       <div style="text-align: left; font-size: 0.95rem; color:#555;">
         <div style="margin-bottom: 15px; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 10px rgba(0,0,0,0.1);">
-          <img src="${getImageUrl(report.image_url)}" 
-               style="width:100%; max-height:280px; object-fit:cover; display:block;"
-               onerror="this.src='/no-image.png'">
+          <img src="${getImageUrl(
+            report.image_url
+          )}" style="width:100%; max-height:280px; object-fit:cover; display:block;" onerror="this.src='/no-image.png'">
         </div>
         <div style="background-color: #f8f9fa; padding: 15px; border-radius: 10px; margin-bottom: 15px; border: 1px solid #eee;">
           <p style="margin: 5px 0;"><strong>👤 ผู้แจ้ง:</strong> ${
@@ -270,11 +298,7 @@ const viewReportDetails = (report) => {
             report.latitude || "-"
           }, ${report.longitude || "-"}</p>
         </div>
-        <a href="${mapLink}" target="_blank" 
-           style="display: flex; align-items: center; justify-content: center; gap: 8px; 
-                  background-color: #4285F4; color: white; text-decoration: none; 
-                  padding: 12px; border-radius: 25px; font-weight: bold; 
-                  box-shadow: 0 4px 6px rgba(66, 133, 244, 0.3); transition: 0.2s;">
+        <a href="${mapLink}" target="_blank" style="display: flex; align-items: center; justify-content: center; gap: 8px; background-color: #4285F4; color: white; text-decoration: none; padding: 12px; border-radius: 25px; font-weight: bold; box-shadow: 0 4px 6px rgba(66, 133, 244, 0.3); transition: 0.2s;">
           <i class="bi bi-geo-alt-fill"></i> เปิดใน Google Maps
         </a>
       </div>
@@ -290,41 +314,31 @@ const handleFilterChange = () => {
   currentPage.value = 1;
   fetchReports(1);
 };
-
 const changePage = (page) => {
-  if (page >= 1 && page <= totalPages.value) {
-    fetchReports(page);
-  }
+  if (page >= 1 && page <= totalPages.value) fetchReports(page);
 };
-
-const getStatusClass = (status) => {
-  if (status === "pending") return "status-pending";
-  if (status === "in_progress") return "status-progress";
-  if (status === "resolved") return "status-done";
-  return "";
-};
-const getStatusLabel = (status) => {
-  if (status === "pending") return "รอดำเนินการ";
-  if (status === "in_progress") return "กำลังแก้ไข";
-  if (status === "resolved") return "แก้ไขแล้ว";
-  return status;
-};
-const formatDate = (dateString) => {
-  if (!dateString) return "";
-  return new Date(dateString).toLocaleDateString("th-TH", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "2-digit",
-  });
-};
-const formatTime = (dateString) => {
-  if (!dateString) return "";
-  return new Date(dateString).toLocaleTimeString("th-TH", {
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-};
-
+const getStatusClass = (status) =>
+  ({ pending: "status-pending", in_progress: "status-progress", resolved: "status-done" }[
+    status
+  ] || "");
+const getStatusLabel = (status) =>
+  ({ pending: "รอดำเนินการ", in_progress: "กำลังแก้ไข", resolved: "แก้ไขแล้ว" }[status] ||
+  status);
+const formatDate = (dateString) =>
+  dateString
+    ? new Date(dateString).toLocaleDateString("th-TH", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "2-digit",
+      })
+    : "";
+const formatTime = (dateString) =>
+  dateString
+    ? new Date(dateString).toLocaleTimeString("th-TH", {
+        hour: "2-digit",
+        minute: "2-digit",
+      })
+    : "";
 const openNewReport = () => {
   router.push("/reportpage");
 };
@@ -332,7 +346,6 @@ const handleMenuClick = (menuId) => {
   if (menuId === "home") fetchReports(1);
   else if (menuId === "report") router.push("/reportpage");
 };
-
 const handleLogout = () => {
   Swal.fire({
     title: "ยืนยันการออกจากระบบ?",
@@ -352,17 +365,16 @@ const handleLogout = () => {
 </script>
 
 <style scoped>
+/* (Style เดิมของคุณดีอยู่แล้ว ผมเพิ่มแค่ .dots) */
 :root {
   --primary-green: #2e5936;
   --secondary-green: #5c9454;
   --bg-light: #e8f5e9;
   --text-dark: #333;
 }
-
 * {
   box-sizing: border-box;
 }
-
 .homepage-container {
   display: flex;
   flex-direction: column;
@@ -374,8 +386,6 @@ const handleLogout = () => {
   font-family: "Kanit", sans-serif;
   overflow: hidden;
 }
-
-/* Header */
 .header {
   background-color: #2e5936;
   color: white;
@@ -385,7 +395,6 @@ const handleLogout = () => {
   align-items: center;
   box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
 }
-
 .user-profile {
   display: flex;
   align-items: center;
@@ -402,7 +411,6 @@ const handleLogout = () => {
   border: 2px solid white;
   object-fit: cover;
 }
-
 .logout-btn {
   background-color: #ddd;
   color: #333;
@@ -416,8 +424,6 @@ const handleLogout = () => {
 .logout-btn:hover {
   background-color: #ccc;
 }
-
-/* Main Layout */
 .container {
   display: flex;
   flex: 1;
@@ -428,8 +434,6 @@ const handleLogout = () => {
   width: 100%;
   overflow-y: auto;
 }
-
-/* Sidebar */
 .sidebar {
   width: 250px;
   flex-shrink: 0;
@@ -470,8 +474,6 @@ const handleLogout = () => {
 .menu-btn:hover {
   background-color: #e0e0e0;
 }
-
-/* Main Content */
 .main-content {
   flex-grow: 1;
   background-color: white;
@@ -495,8 +497,6 @@ const handleLogout = () => {
   height: 100%;
   object-fit: cover;
 }
-
-/* Search Bar */
 .search-bar {
   background-color: white;
   padding: 10px;
@@ -524,8 +524,6 @@ const handleLogout = () => {
   cursor: pointer;
   font-family: "Kanit", sans-serif;
 }
-
-/* Report List */
 .report-list {
   display: flex;
   flex-direction: column;
@@ -599,7 +597,6 @@ const handleLogout = () => {
   background-color: #d1e7dd;
   color: #0f5132;
 }
-
 .report-meta {
   text-align: right;
   font-size: 0.85rem;
@@ -609,7 +606,6 @@ const handleLogout = () => {
   justify-content: center;
   min-width: 80px;
 }
-
 .btn-view {
   background: none;
   border: none;
@@ -624,20 +620,18 @@ const handleLogout = () => {
   transform: scale(1.1);
   color: #1b3820;
 }
-
-/* Pagination */
 .pagination-container {
   display: flex;
   justify-content: center;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   margin-top: 20px;
   padding: 10px;
   padding-bottom: 20px;
 }
 .page-btn {
-  width: 40px;
-  height: 40px;
+  width: 35px;
+  height: 35px;
   border-radius: 50%;
   border: 1px solid #ddd;
   background: white;
@@ -645,6 +639,7 @@ const handleLogout = () => {
   cursor: pointer;
   font-family: "Kanit";
   font-weight: 600;
+  font-size: 14px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -665,8 +660,10 @@ const handleLogout = () => {
   color: #ccc;
   cursor: not-allowed;
 }
-
-/* FAB */
+.dots {
+  color: #888;
+  font-weight: bold;
+}
 .fab {
   position: absolute;
   bottom: 30px;
@@ -689,8 +686,6 @@ const handleLogout = () => {
 .fab:hover {
   transform: scale(1.1);
 }
-
-/* Loading Spinner */
 .loading-spinner {
   border: 4px solid rgba(0, 0, 0, 0.1);
   width: 40px;
@@ -713,8 +708,6 @@ const handleLogout = () => {
   color: #666;
   font-weight: bold;
 }
-
-/* Responsive */
 @media (max-width: 768px) {
   .container {
     flex-direction: column;
