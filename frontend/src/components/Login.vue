@@ -58,6 +58,7 @@ const handleLogin = async () => {
   errorMessage.value = "";
 
   try {
+    // แก้ไขตรงนี้: ส่ง form.value ไปแทน loginData
     const response = await axios.post(`${API_URL}/auth/login`, form.value);
     if (response.status === 200) processLogin(response.data);
   } catch (error) {
@@ -69,18 +70,17 @@ const handleLogin = async () => {
 
 // --- 2. Login Google (Mock/Simple) ---
 const loginWithGoogle = async () => {
-  // คุณใช้ library vue3-google-login ใน main.js แล้ว
-  // แต่ตรงนี้ผมทำแบบ Mock ให้ใช้ง่ายๆ ไปก่อนเหมือนเดิม
   isLoading.value = true;
   try {
     const mockUser = {
       email: `google_${Math.floor(Math.random() * 10000)}@gmail.com`,
       name: "Google User (Mock)",
     };
-    // ใช้ Endpoint เดิมได้เลย เพราะ Backend รับแค่ email/name
-    const res = await axios.post(`${API_URL}/google-login-simple`, mockUser);
+    // เพิ่ม /auth/ เข้าไปให้ตรงกับ server.js
+    const res = await axios.post(`${API_URL}/auth/google-login-simple`, mockUser);
     processLogin(res.data);
   } catch (error) {
+    console.error("Google Error:", error);
     errorMessage.value = "Google Login Failed";
   } finally {
     isLoading.value = false;
