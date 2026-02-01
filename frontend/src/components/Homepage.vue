@@ -238,9 +238,11 @@ const fetchReports = async (page = 1) => {
   loading.value = true;
   try {
     const token = localStorage.getItem("token");
-    const response = await axios.get(`${API_URL}/admin/reports`, {
-      headers: { Authorization: `Bearer ${token}` },
+    const response = await axios.get(`${API_URL}/reports`, { 
+      headers: { Authorization: `Bearer ${token}` }
     });
+
+    console.log("ข้อมูลที่ได้รับจาก Backend:", response.data); // 👈 เพิ่มบรรทัดนี้
 
     let allReports = response.data;
 

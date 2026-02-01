@@ -66,16 +66,17 @@ router.post('/', upload.single('image'), async (req, res) => {
 // ==========================================
 // ✅ 3. ดึงรายการแจ้งปัญหาทั้งหมด (GET /api/reports)
 // ==========================================
+// ✅ ส่วนสำหรับดึงข้อมูลมาโชว์หน้า Home
 router.get('/', async (req, res) => {
     try {
-        // ดึงข้อมูลพร้อมจอยชื่อผู้แจ้ง (ถ้ามี)
+        // ใช้ LEFT JOIN เพื่อเอาชื่อคนแจ้งมาโชว์ด้วย
         const sql = `
             SELECT r.*, u.fullname as username 
             FROM reports r 
             LEFT JOIN users u ON r.user_id = u.id 
             ORDER BY r.created_at DESC
         `;
-        const [results] = await db.query(sql);
+        const [results] = await db.query(sql); //
         res.json(results);
     } catch (err) {
         console.error('Fetch Reports Error:', err);
