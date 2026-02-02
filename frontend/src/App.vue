@@ -8,7 +8,7 @@
 
 <style>
 /* ✅ 1. นำเข้าฟอนต์ Kanit จาก Google Fonts ทีเดียวจบ ใช้ได้ทั้งเว็บ */
-@import url('https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600&display=swap');
+@import url("https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600&display=swap");
 
 /* ✅ 2. ตั้งค่า Global Styles (Reset CSS) */
 body,
@@ -17,12 +17,9 @@ html {
   padding: 0;
   width: 100%;
   height: 100%;
-  font-family: 'Kanit', sans-serif;
-  /* บังคับใช้ฟอนต์ Kanit ทั้งเว็บ */
-  background-color: #f5f5f5;
-  /* สีพื้นหลังรองรับ */
-  overflow-x: hidden;
-  /* ป้องกันสกรอลแนวนอน */
+  font-family: "Kanit", sans-serif; /* บังคับใช้ฟอนต์ Kanit ทั้งเว็บ */
+  background-color: #f5f5f5; /* สีพื้นหลังรองรับ */
+  overflow-x: hidden; /* ป้องกันสกรอลแนวนอน */
 }
 
 #app {
