@@ -8,6 +8,7 @@ const fs = require('fs');
 // ==========================================
 // ✅ 1. ตั้งค่าการอัปโหลดไฟล์ (Multer)
 // ==========================================
+// ใช้ process.cwd() เพื่อให้ชัวร์ว่าอ้างอิงจาก Root Project
 const uploadDir = path.join(process.cwd(), 'uploads');
 if (!fs.existsSync(uploadDir)) {
     fs.mkdirSync(uploadDir, { recursive: true });
@@ -39,21 +40,31 @@ router.get('/', async (req, res) => {
 });
 
 // ==========================================
-// ✅ 3. ลบผู้ใช้งาน (DELETE)
+// ✅ 3. ลบผู้ใช้งาน + ลบรูปโปรไฟล์ (DELETE)
 // ==========================================
 router.delete('/:id', async (req, res) => {
     try {
         const userId = req.params.id;
         
-        // ลบรูปภาพโปรไฟล์ทิ้งด้วย (ถ้ามี)
+        // 1. หาไฟล์รูปก่อนลบ
         const [user] = await db.query('SELECT image_url FROM users WHERE id = ?', [userId]);
+        
         if (user.length > 0 && user[0].image_url) {
-            const filePath = path.join(process.cwd(), user[0].image_url);
-            if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+            const imageUrl = user[0].image_url;
+            // แก้ Path ให้ถูกต้องสำหรับ Localhost (ตัด / ตัวหน้าออก)
+            const relativePath = imageUrl.startsWith('/') ? imageUrl.substring(1) : imageUrl;
+            const filePath = path.join(process.cwd(), relativePath);
+
+            // ลบไฟล์ถ้ามีอยู่จริง
+            if (fs.existsSync(filePath)) {
+                fs.unlinkSync(filePath);
+            }
         }
 
+        // 2. ลบข้อมูลใน DB
         await db.query('DELETE FROM users WHERE id = ?', [userId]);
         res.json({ message: `ลบผู้ใช้ ID ${userId} เรียบร้อยแล้ว` });
+
     } catch (err) {
         console.error(err);
         res.status(500).json({ error: 'ไม่สามารถลบผู้ใช้งานได้' });
@@ -62,30 +73,44 @@ router.delete('/:id', async (req, res) => {
 
 // ==========================================
 // ✅ 4. อัปเดตโปรไฟล์ (เปลี่ยนชื่อ, เบอร์, รูป) (PUT)
+// 🔥 เพิ่มฟังก์ชันลบรูปเก่าทิ้งให้ด้วย
 // ==========================================
 router.put('/:id', upload.single('image'), async (req, res) => {
     try {
         const id = req.params.id;
         const { fullname, phone } = req.body;
+        
+        // ถ้ามีการอัปโหลดรูปใหม่
         let newImage = req.file ? `/uploads/${req.file.filename}` : null;
 
-        let sql, params;
         if (newImage) {
-            sql = "UPDATE users SET fullname = ?, phone = ?, image_url = ? WHERE id = ?";
-            params = [fullname, phone, newImage, id];
+            // 🔥 หาและลบรูปเก่าทิ้งก่อน (เพื่อไม่ให้หนักเครื่อง)
+            const [oldUser] = await db.query('SELECT image_url FROM users WHERE id = ?', [id]);
+            if (oldUser.length > 0 && oldUser[0].image_url) {
+                const oldUrl = oldUser[0].image_url;
+                const oldPath = path.join(process.cwd(), oldUrl.startsWith('/') ? oldUrl.substring(1) : oldUrl);
+                if (fs.existsSync(oldPath)) {
+                    fs.unlinkSync(oldPath); // ลบรูปเก่า
+                }
+            }
+
+            // อัปเดตข้อมูลพร้อมรูปใหม่
+            const sql = "UPDATE users SET fullname = ?, phone = ?, image_url = ? WHERE id = ?";
+            await db.query(sql, [fullname, phone, newImage, id]);
         } else {
-            sql = "UPDATE users SET fullname = ?, phone = ? WHERE id = ?";
-            params = [fullname, phone, id];
+            // อัปเดตแค่ข้อมูล (รูปเดิม)
+            const sql = "UPDATE users SET fullname = ?, phone = ? WHERE id = ?";
+            await db.query(sql, [fullname, phone, id]);
         }
 
-        await db.query(sql, params);
-        
         // ดึงข้อมูลใหม่ส่งกลับไป
         const [rows] = await db.query('SELECT id, fullname, email, phone, role, image_url FROM users WHERE id = ?', [id]);
+        
         res.json({ 
             message: 'Update Profile Success', 
             user: rows[0] 
         });
+
     } catch (err) {
         console.error(err);
         res.status(500).json({ error: err.message });
@@ -94,7 +119,6 @@ router.put('/:id', upload.single('image'), async (req, res) => {
 
 // ==========================================
 // ✅ 5. เปลี่ยนสิทธิ์ผู้ใช้ (PUT /api/users/:id/role)
-// 🔥 เพิ่มใหม่สำหรับให้ Admin จัดการกันเอง
 // ==========================================
 router.put('/:id/role', async (req, res) => {
     try {

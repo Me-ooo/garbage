@@ -6,9 +6,12 @@ const path = require('path');
 const fs = require('fs');
 
 // ==========================================
-// ✅ 1. ตั้งค่าการอัปโหลดไฟล์
+// ✅ 1. ตั้งค่าการอัปโหลดไฟล์ (Multer)
 // ==========================================
+// ใช้ process.cwd() เพื่ออ้างอิงจาก Root ของโปรเจกต์ (backend/)
 const uploadDir = path.join(process.cwd(), 'uploads');
+
+// ถ้ายังไม่มีโฟลเดอร์ uploads ให้สร้างใหม่ทันที
 if (!fs.existsSync(uploadDir)) {
     fs.mkdirSync(uploadDir, { recursive: true });
 }
@@ -18,6 +21,7 @@ const storage = multer.diskStorage({
         cb(null, 'uploads/');
     },
     filename: (req, file, cb) => {
+        // ตั้งชื่อไฟล์เป็น report-เวลา-ชื่อเดิม
         cb(null, 'report-' + Date.now() + path.extname(file.originalname));
     }
 });
@@ -33,6 +37,7 @@ router.post('/', upload.single('image'), async (req, res) => {
         
         let imageUrl = null;
         if (req.file) {
+            // เก็บ Path เป็น /uploads/ชื่อไฟล์.jpg
             imageUrl = `/uploads/${req.file.filename}`;
         }
 
@@ -67,6 +72,7 @@ router.post('/', upload.single('image'), async (req, res) => {
 // ==========================================
 router.get('/', async (req, res) => {
     try {
+        // JOIN กับตาราง users เพื่อเอาชื่อคนแจ้งมาแสดง
         const sql = `
             SELECT r.*, u.fullname as username 
             FROM reports r 
@@ -83,7 +89,6 @@ router.get('/', async (req, res) => {
 
 // ==========================================
 // ✅ 4. อัปเดตสถานะขยะ (PUT /api/reports/:id/status)
-// 🔥 เพิ่มใหม่สำหรับ Admin (โอมมี่ & Admin Second)
 // ==========================================
 router.put('/:id/status', async (req, res) => {
     try {
@@ -101,22 +106,35 @@ router.put('/:id/status', async (req, res) => {
 });
 
 // ==========================================
-// ✅ 5. ลบรายงาน (DELETE /api/reports/:id)
-// 🔥 เพิ่มใหม่สำหรับ Admin กรณีต้องการลบข้อมูลขยะ
+// ✅ 5. ลบรายงาน + ลบรูปภาพจริง (DELETE /api/reports/:id)
 // ==========================================
 router.delete('/:id', async (req, res) => {
     try {
         const { id } = req.params;
         
-        // (Option) ลบรูปภาพในโฟลเดอร์ uploads ด้วยถ้าต้องการ
+        // 1. หาชื่อไฟล์รูปภาพก่อนลบ
         const [report] = await db.query('SELECT image_url FROM reports WHERE id = ?', [id]);
+        
         if (report.length > 0 && report[0].image_url) {
-            const filePath = path.join(process.cwd(), report[0].image_url);
-            if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+            const imageUrl = report[0].image_url; // เช่น /uploads/file.jpg
+            
+            // แก้ไข Path ให้ถูกต้องสำหรับ Localhost
+            // ตัด '/' ตัวหน้าออก เพื่อให้ path.join ทำงานถูกต้องกับ process.cwd()
+            const relativePath = imageUrl.startsWith('/') ? imageUrl.substring(1) : imageUrl;
+            const filePath = path.join(process.cwd(), relativePath);
+
+            // ตรวจสอบว่ามีไฟล์จริงไหม แล้วค่อยลบ
+            if (fs.existsSync(filePath)) {
+                fs.unlinkSync(filePath);
+                console.log(`Deleted Image: ${filePath}`);
+            }
         }
 
+        // 2. ลบข้อมูลใน Database
         await db.query('DELETE FROM reports WHERE id = ?', [id]);
+        
         res.json({ message: 'ลบรายงานเรียบร้อยแล้ว' });
+
     } catch (err) {
         console.error('Delete Report Error:', err);
         res.status(500).json({ error: 'ไม่สามารถลบข้อมูลได้' });
