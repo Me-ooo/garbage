@@ -4,6 +4,7 @@ import axios from "axios";
 import { useRouter } from "vue-router"; 
 
 const router = useRouter();
+const API_URL = import.meta.env.VITE_API_BASE_URL;
 
 // ข้อมูลสำหรับสมัครสมาชิก
 const reg = ref({
@@ -23,10 +24,12 @@ const handleRegister = async () => {
   if (!reg.value.accept) {
     return alert("กรุณายอมรับเงื่อนไข");
   }
-
+  
   try {
     // 2. ส่งข้อมูลไป Backend
-    await axios.post("http://localhost:3000/api/register", {
+    // แก้ไข URL จาก /api/register เป็น /api/auth
+    // และแนะนำให้ใช้ตัวแปร API_URL จาก .env แทนการพิมพ์ localhost ตรงๆ
+    await axios.post(`${API_URL}/auth`, {
       fullname: reg.value.fullname,
       phone: reg.value.phone,
       email: reg.value.email,
@@ -39,7 +42,6 @@ const handleRegister = async () => {
 
   } catch (err) {
     console.error(err);
-    // แสดง Error ที่ส่งมาจาก Backend (ถ้ามี) หรือข้อความ Default
     const msg = err.response?.data?.message || "เกิดข้อผิดพลาดในการสมัครสมาชิก";
     alert(msg);
   }

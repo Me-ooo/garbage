@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const db = require('../config/db');
+const db = require('../config/db'); // ใช้ pool.promise()
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
@@ -8,8 +8,7 @@ const fs = require('fs');
 // ==========================================
 // ✅ 1. ตั้งค่าการอัปโหลดไฟล์ (Multer)
 // ==========================================
-const uploadDir = path.join(__dirname, '../uploads');
-// ตรวจสอบว่ามีโฟลเดอร์ uploads หรือไม่ ถ้าไม่มีให้สร้าง
+const uploadDir = path.join(process.cwd(), 'uploads');
 if (!fs.existsSync(uploadDir)) {
     fs.mkdirSync(uploadDir, { recursive: true });
 }
@@ -19,7 +18,6 @@ const storage = multer.diskStorage({
         cb(null, 'uploads/');
     },
     filename: (req, file, cb) => {
-        // ตั้งชื่อไฟล์: user-{timestamp}.นามสกุลเดิม
         cb(null, 'user-' + Date.now() + path.extname(file.originalname));
     }
 });
@@ -29,78 +27,86 @@ const upload = multer({ storage: storage });
 // ==========================================
 // ✅ 2. ดึงรายชื่อ Users ทั้งหมด (สำหรับ Admin Dashboard)
 // ==========================================
-router.get('/', (req, res) => {
-    // เลือกข้อมูลที่จำเป็นรวมถึง image_url
-    const sql = 'SELECT id, fullname, email, phone, role, image_url, created_at FROM users ORDER BY created_at DESC';
-    
-    db.query(sql, (err, results) => {
-        if (err) {
-            console.error(err);
-            return res.status(500).json({ error: 'เกิดข้อผิดพลาดในการดึงข้อมูลผู้ใช้' });
-        }
+router.get('/', async (req, res) => {
+    try {
+        const sql = 'SELECT id, fullname, email, phone, role, image_url, created_at FROM users ORDER BY created_at DESC';
+        const [results] = await db.query(sql);
         res.json(results);
-    });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'เกิดข้อผิดพลาดในการดึงข้อมูลผู้ใช้' });
+    }
 });
 
 // ==========================================
 // ✅ 3. ลบผู้ใช้งาน (DELETE)
 // ==========================================
-router.delete('/:id', (req, res) => {
-    const userId = req.params.id;
-    const sql = 'DELETE FROM users WHERE id = ?';
-
-    db.query(sql, [userId], (err, result) => {
-        if (err) {
-            console.error(err);
-            return res.status(500).json({ error: 'ไม่สามารถลบผู้ใช้งานได้' });
+router.delete('/:id', async (req, res) => {
+    try {
+        const userId = req.params.id;
+        
+        // ลบรูปภาพโปรไฟล์ทิ้งด้วย (ถ้ามี)
+        const [user] = await db.query('SELECT image_url FROM users WHERE id = ?', [userId]);
+        if (user.length > 0 && user[0].image_url) {
+            const filePath = path.join(process.cwd(), user[0].image_url);
+            if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
         }
+
+        await db.query('DELETE FROM users WHERE id = ?', [userId]);
         res.json({ message: `ลบผู้ใช้ ID ${userId} เรียบร้อยแล้ว` });
-    });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'ไม่สามารถลบผู้ใช้งานได้' });
+    }
 });
 
 // ==========================================
 // ✅ 4. อัปเดตโปรไฟล์ (เปลี่ยนชื่อ, เบอร์, รูป) (PUT)
 // ==========================================
-router.put('/:id', upload.single('image'), (req, res) => {
-    const id = req.params.id;
-    const { fullname, phone } = req.body;
-    
-    // ตรวจสอบว่ามีการอัปโหลดรูปใหม่มาหรือไม่
-    let newImage = null;
-    if (req.file) {
-        newImage = `/uploads/${req.file.filename}`;
-    }
+router.put('/:id', upload.single('image'), async (req, res) => {
+    try {
+        const id = req.params.id;
+        const { fullname, phone } = req.body;
+        let newImage = req.file ? `/uploads/${req.file.filename}` : null;
 
-    // Logic: ถ้า newImage มีค่า ให้อัปเดตช่อง image_url ด้วย
-    // ถ้าไม่มี (newImage เป็น null) ให้อัปเดตแค่ชื่อกับเบอร์ (ใช้ SQL คนละชุด)
-    let sql = "";
-    let params = [];
-
-    if (newImage) {
-        sql = "UPDATE users SET fullname = ?, phone = ?, image_url = ? WHERE id = ?";
-        params = [fullname, phone, newImage, id];
-    } else {
-        sql = "UPDATE users SET fullname = ?, phone = ? WHERE id = ?";
-        params = [fullname, phone, id];
-    }
-
-    db.query(sql, params, (err, result) => {
-        if (err) {
-            console.error(err);
-            return res.status(500).json({ error: err.message });
+        let sql, params;
+        if (newImage) {
+            sql = "UPDATE users SET fullname = ?, phone = ?, image_url = ? WHERE id = ?";
+            params = [fullname, phone, newImage, id];
+        } else {
+            sql = "UPDATE users SET fullname = ?, phone = ? WHERE id = ?";
+            params = [fullname, phone, id];
         }
 
-        // ดึงข้อมูล User ล่าสุดหลังอัปเดตส่งกลับไปให้ Frontend (สำคัญมากสำหรับ LocalStorage)
-        db.query('SELECT * FROM users WHERE id = ?', [id], (err, rows) => {
-            if (err) return res.status(500).json({ error: err.message });
-            
-            // ส่งข้อมูลกลับไป
-            res.json({ 
-                message: 'Update Profile Success', 
-                user: rows[0] 
-            });
+        await db.query(sql, params);
+        
+        // ดึงข้อมูลใหม่ส่งกลับไป
+        const [rows] = await db.query('SELECT id, fullname, email, phone, role, image_url FROM users WHERE id = ?', [id]);
+        res.json({ 
+            message: 'Update Profile Success', 
+            user: rows[0] 
         });
-    });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// ==========================================
+// ✅ 5. เปลี่ยนสิทธิ์ผู้ใช้ (PUT /api/users/:id/role)
+// 🔥 เพิ่มใหม่สำหรับให้ Admin จัดการกันเอง
+// ==========================================
+router.put('/:id/role', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { role } = req.body; // รับค่า 'user' หรือ 'admin'
+
+        await db.query('UPDATE users SET role = ? WHERE id = ?', [role, id]);
+        res.json({ message: 'เปลี่ยนสิทธิ์ผู้ใช้งานเรียบร้อยแล้ว' });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'ไม่สามารถเปลี่ยนสิทธิ์ได้' });
+    }
 });
 
 module.exports = router;

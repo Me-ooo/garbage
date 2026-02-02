@@ -15,8 +15,8 @@ router.get('/reports', async (req, res) => {
             ORDER BY reports.created_at DESC
         `;
         
-        // ใช้ .promise() เพื่อรอข้อมูลจาก TiDB Cloud
-        const [results] = await db.promise().query(sql);
+        // ใช้  เพื่อรอข้อมูลจาก TiDB Cloud
+        const [results] = await db.query(sql);
         res.json(results);
 
     } catch (err) {
@@ -35,7 +35,7 @@ router.put('/reports/:id/status', async (req, res) => {
 
         const sql = "UPDATE reports SET status = ? WHERE id = ?";
 
-        await db.promise().query(sql, [status, id]);
+        await db.query(sql, [status, id]);
 
         res.json({ message: 'อัปเดตสถานะเรียบร้อย' });
 
@@ -53,7 +53,7 @@ router.delete('/reports/:id', async (req, res) => {
         const id = req.params.id;
         const sql = "DELETE FROM reports WHERE id = ?";
 
-        await db.promise().query(sql, [id]);
+        await db.query(sql, [id]);
 
         res.json({ message: 'ลบรายการเรียบร้อย' });
 

@@ -58,11 +58,15 @@ router.post('/login', async (req, res) => {
         }
 
         // 3. สร้าง Token
-        const token = jwt.sign(
-            { id: user.id, email: user.email, role: user.role }, 
-            secretKey, 
-            { expiresIn: '1h' }
-        );
+      const token = jwt.sign(
+    { 
+        id: user.id, 
+        email: user.email, 
+        role: user.role // 👈 ต้องมีบรรทัดนี้ เพื่อให้สิทธิ์ admin ติดไปกับ Token
+    }, 
+    secretKey, 
+    { expiresIn: '1h' }
+);
 
         res.json({ message: 'เข้าสู่ระบบสำเร็จ', token, user });
 

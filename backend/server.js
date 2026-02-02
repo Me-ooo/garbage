@@ -8,35 +8,48 @@ require('dotenv').config();
 const authRoutes = require('./routes/auth');
 const reportRoutes = require('./routes/reports');
 const adminRoutes = require('./routes/admin'); 
-const usersRoutes = require('./routes/users'); 
+const usersRoutes = require('./途/users'); 
 
 const app = express();
 
-// ✅ ใช้ PORT จากระบบ (Vercel) หรือใช้ 3000 ถ้าทดสอบในเครื่อง
+// ✅ ปรับ PORT ให้รองรับ Vercel
 const port = process.env.PORT || 3000;
 
-// Middleware
-app.use(cors());
+// ✅ 1. ปรับปรุง CORS ให้ยืดหยุ่น (สำคัญมากตอน Deploy)
+app.use(cors({
+    origin: '*', // ในช่วงส่งงานอาจารย์ใช้ '*' เพื่อให้เข้าถึงได้จากทุกที่
+    methods: ['GET', 'POST', 'PUT', 'DELETE'],
+    allowedHeaders: ['Content-Type', 'Authorization']
+}));
+
 app.use(bodyParser.json());
+app.use(express.urlencoded({ extended: true }));
+
+// ✅ 2. ปรับการเข้าถึงรูปภาพให้รองรับโครงสร้าง Vercel
+// ใช้ process.cwd() เพื่อให้ Path แม่นยำเวลาอยู่บน Cloud
+app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
+
+// Routes
 app.get('/', (req, res) => {
-  res.send('Backend Server is Running! 🚀');
+  res.send('Backend Server is Running for Garbage System! 🚀');
 });
 
-// ✅ เปิดให้เข้าถึงโฟลเดอร์ uploads (หมายเหตุ: บน Vercel รูปที่อัปโหลดจะหายไปเมื่อ Server รีเซ็ต)
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+app.use('/api/auth', authRoutes);
+app.use('/api/reports', reportRoutes);
+app.use('/api/admin', adminRoutes);
+app.use('/api/users', usersRoutes);
 
-// Use Routes
-app.use('/api/auth', authRoutes);    // เข้าถึงผ่าน /api/auth/login หรือ /api/auth/register
-app.use('/api/reports', reportRoutes);  // เข้าถึงผ่าน /api/reports/
-app.use('/api/admin', adminRoutes);    // เข้าถึงผ่าน /api/admin/
-app.use('/api/users', usersRoutes);    // เข้าถึงผ่าน /api/users/
+// ✅ 3. Error Handling กรณีหา Route ไม่เจอ (ป้องกันหน้าขาวบน Vercel)
+app.use((req, res, next) => {
+    res.status(404).json({ message: "API Path Not Found" });
+});
 
-// ✅ Start Server (แบบรองรับ Vercel)
-if (require.main === module) {
-  app.listen(port, () => {
-    console.log(`Backend server running on port ${port}`);
-  });
+// ✅ 4. Start Server (สำหรับการรันในเครื่อง)
+if (process.env.NODE_ENV !== 'production') {
+    app.listen(port, () => {
+        console.log(`Backend server running on http://localhost:${port}`);
+    });
 }
 
-// ⭐ บรรทัดนี้สำคัญที่สุดสำหรับ Vercel!
+// ⭐ บรรทัดนี้คือหัวใจสำคัญของ Serverless Function ใน Vercel
 module.exports = app;

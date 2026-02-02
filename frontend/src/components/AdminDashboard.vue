@@ -13,7 +13,7 @@
           class="profile-img"
           @error="$event.target.src = 'https://placehold.co/40x40?text=Admin'"
         />
-        <span>{{ userName }}</span>
+        <span>{{ userName }} (Admin)</span>
       </div>
       <button class="logout-btn" @click="logout">ออกจากระบบ</button>
     </header>
@@ -24,13 +24,15 @@
           <img
             src="/admin-sidebar.png"
             alt="Admin Banner"
-            @error="$event.target.src = 'https://placehold.co/250x150'"
+            @error="
+              $event.target.src = 'https://placehold.co/250x150?text=Garbage+System'
+            "
           />
         </div>
 
         <div class="nav-menu">
           <button class="menu-btn" @click="goToSystemOverview">
-            <i class="bi bi-bar-chart-line-fill"></i> ภาพรวม
+            <i class="bi bi-bar-chart-line-fill"></i> ภาพรวมระบบ
           </button>
 
           <button
@@ -38,7 +40,7 @@
             :class="{ 'active-btn': activeTab === 'reports' }"
             @click="switchTab('reports')"
           >
-            <i class="bi bi-file-earmark-text-fill"></i> รายการปัญหา
+            <i class="bi bi-file-earmark-text-fill"></i> รายการแจ้งขยะ
           </button>
 
           <button
@@ -46,7 +48,7 @@
             :class="{ 'active-btn': activeTab === 'users' }"
             @click="switchTab('users')"
           >
-            <i class="bi bi-people-fill"></i> รายชื่อผู้ใช้
+            <i class="bi bi-people-fill"></i> จัดการผู้ใช้
           </button>
 
           <div class="menu-divider"></div>
@@ -57,7 +59,9 @@
         <div class="content-header">
           <h2>
             {{
-              activeTab === "reports" ? "ตารางรายการแจ้งปัญหา" : "ตารางรายชื่อผู้ใช้งาน"
+              activeTab === "reports"
+                ? "📦 รายการแจ้งปัญหาทั้งหมด"
+                : "👥 รายชื่อสมาชิกในระบบ"
             }}
           </h2>
         </div>
@@ -86,7 +90,7 @@
         </div>
 
         <div v-if="loading" class="text-center mt-5">
-          <div class="loading-text">กำลังโหลดข้อมูล...</div>
+          <div class="loading-text">กำลังโหลดข้อมูลจาก TiDB...</div>
         </div>
 
         <div v-else class="table-card">
@@ -98,7 +102,7 @@
                   <th width="25%">หัวข้อ</th>
                   <th width="15%">ผู้แจ้ง</th>
                   <th width="120">วันที่</th>
-                  <th width="150">สถานะ</th>
+                  <th width="150">สถานะการจัดการ</th>
                   <th width="120" class="text-center">จัดการ</th>
                 </tr>
               </thead>
@@ -108,7 +112,9 @@
                     <div class="img-wrapper">
                       <img
                         :src="getImageUrl(report.image_url)"
-                        @error="$event.target.src = 'https://placehold.co/50x50?text=No+Img'"
+                        @error="
+                          $event.target.src = 'https://placehold.co/50x50?text=No+Img'
+                        "
                       />
                     </div>
                   </td>
@@ -121,7 +127,7 @@
                       {{ report.description }}
                     </small>
                   </td>
-                  <td>{{ report.username || "ไม่ระบุ" }}</td>
+                  <td>{{ report.username || "บุคคลทั่วไป" }}</td>
                   <td>{{ formatDate(report.created_at) }}</td>
                   <td>
                     <select
@@ -140,14 +146,14 @@
                       <button
                         class="btn-icon view"
                         @click="viewAndForward(report)"
-                        title="ดูรายละเอียด"
+                        title="ดูพิกัด & ส่งเรื่อง"
                       >
-                        <i class="bi bi-eye-fill"></i>
+                        <i class="bi bi-geo-alt-fill"></i>
                       </button>
                       <button
                         class="btn-icon delete"
                         @click="deleteReport(report.id)"
-                        title="ลบ"
+                        title="ลบรายงาน"
                       >
                         <i class="bi bi-trash-fill"></i>
                       </button>
@@ -155,7 +161,7 @@
                   </td>
                 </tr>
                 <tr v-if="paginatedItems.length === 0">
-                  <td colspan="6" class="empty-row">ไม่พบข้อมูลที่ค้นหา</td>
+                  <td colspan="6" class="empty-row">ไม่พบข้อมูลรายงานขยะ</td>
                 </tr>
               </tbody>
             </table>
@@ -168,7 +174,6 @@
                   <th width="80">รูป</th>
                   <th>ชื่อผู้ใช้</th>
                   <th>อีเมล</th>
-                  <th>เบอร์โทรศัพท์</th>
                   <th>สิทธิ์</th>
                   <th class="text-center">จัดการ</th>
                 </tr>
@@ -179,13 +184,14 @@
                     <div class="img-wrapper circle">
                       <img
                         :src="getImageUrl(user.image_url)"
-                        @error="$event.target.src = 'https://placehold.co/40x40?text=User'"
+                        @error="
+                          $event.target.src = 'https://placehold.co/40x40?text=User'
+                        "
                       />
                     </div>
                   </td>
-                  <td class="fw-bold">{{ user.fullname || user.username }}</td>
+                  <td class="fw-bold">{{ user.fullname }}</td>
                   <td>{{ user.email }}</td>
-                  <td>{{ user.phone || "-" }}</td>
                   <td>
                     <span
                       class="role-badge"
@@ -195,18 +201,25 @@
                     </span>
                   </td>
                   <td class="text-center">
-                    <button
-                      v-if="user.role !== 'admin'"
-                      class="btn-icon delete"
-                      @click="deleteUser(user.id)"
-                      title="ลบผู้ใช้"
-                    >
-                      <i class="bi bi-trash-fill"></i>
-                    </button>
+                    <div class="action-buttons">
+                      <button
+                        v-if="user.role !== 'admin'"
+                        class="btn-icon view"
+                        @click="changeUserRole(user.id, 'admin')"
+                        title="ตั้งเป็น Admin"
+                      >
+                        <i class="bi bi-shield-lock-fill"></i>
+                      </button>
+                      <button
+                        v-if="user.role !== 'admin'"
+                        class="btn-icon delete"
+                        @click="deleteUser(user.id)"
+                        title="ลบผู้ใช้"
+                      >
+                        <i class="bi bi-person-x-fill"></i>
+                      </button>
+                    </div>
                   </td>
-                </tr>
-                <tr v-if="paginatedItems.length === 0">
-                  <td colspan="6" class="empty-row">ไม่พบรายชื่อผู้ใช้</td>
                 </tr>
               </tbody>
             </table>
@@ -220,7 +233,6 @@
             >
               <i class="bi bi-chevron-left"></i>
             </button>
-
             <button
               v-for="page in totalPages"
               :key="page"
@@ -230,7 +242,6 @@
             >
               {{ page }}
             </button>
-
             <button
               class="page-btn nav-btn"
               :disabled="currentPage === totalPages"
@@ -252,10 +263,9 @@ import Swal from "sweetalert2";
 import { useRouter } from "vue-router";
 
 const router = useRouter();
-// ✅ 1. ใช้ URL กลางจาก .env
 const API_URL = import.meta.env.VITE_API_BASE_URL;
 
-const activeTab = ref("reports"); 
+const activeTab = ref("reports");
 const reports = ref([]);
 const users = ref([]);
 const loading = ref(false);
@@ -263,234 +273,174 @@ const userName = ref("Admin");
 const searchText = ref("");
 const filterStatus = ref("all");
 
-// --- Pagination Variables ---
 const currentPage = ref(1);
-const itemsPerPage = 6; 
+const itemsPerPage = 6;
 
-// ✅ ฟังก์ชันจัดการ URL รูปภาพให้รองรับทั้ง Localhost และ Vercel
+// ✅ จัดการ URL รูปภาพ
 const getImageUrl = (path) => {
-  if (!path) return '';
-  if (path.startsWith('http')) return path; // กรณีเป็นรูปจาก Google/Facebook
-  // ถ้าเป็น Path จาก Server ให้ต่อ Base URL ของ API (ตัด /api ออก ถ้า path มี /uploads)
-  // แต่ในเคสนี้เราใช้ API_URL เป็น Base ได้เลย หรือใช้ URL ของเว็บ
-  // เพื่อความง่าย: ให้ใช้ API_URL แต่ต้องระวังเรื่อง Path ซ้ำซ้อน
-  const baseUrl = API_URL.replace('/api', ''); // ตัด /api ออกเพื่อเข้าถึง static files
+  if (!path) return "";
+  if (path.startsWith("http")) return path;
+  // ตัด /api ออกจาก URL เพื่อดึงไฟล์ Static จากโฟลเดอร์ uploads
+  const baseUrl = API_URL.replace("/api", "");
   return `${baseUrl}${path}`;
 };
 
 const userImage = computed(() => {
-  const userStr = localStorage.getItem("user");
-  if (userStr) {
-    const user = JSON.parse(userStr);
-    return user.image_url ? getImageUrl(user.image_url) : "/admin-profile.png";
-  }
-  return "/admin-profile.png";
+  const user = JSON.parse(localStorage.getItem("user") || "{}");
+  return user.image_url
+    ? getImageUrl(user.image_url)
+    : "https://placehold.co/40x40?text=Admin";
 });
 
-// กรองข้อมูล Reports
 const filteredReports = computed(() => {
-  return reports.value.filter((report) => {
-    const matchStatus =
-      filterStatus.value === "all" || report.status === filterStatus.value;
+  return reports.value.filter((r) => {
+    const matchStatus = filterStatus.value === "all" || r.status === filterStatus.value;
     const query = searchText.value.toLowerCase();
     const matchSearch =
-      (report.title && report.title.toLowerCase().includes(query)) ||
-      (report.description && report.description.toLowerCase().includes(query)) ||
-      (report.username && report.username.toLowerCase().includes(query));
+      r.title?.toLowerCase().includes(query) || r.username?.toLowerCase().includes(query);
     return matchStatus && matchSearch;
   });
 });
 
-// กรองข้อมูล Users
 const filteredUsers = computed(() => {
-  return users.value.filter((user) => {
+  return users.value.filter((u) => {
     const query = searchText.value.toLowerCase();
     return (
-      (user.fullname && user.fullname.toLowerCase().includes(query)) ||
-      (user.username && user.username.toLowerCase().includes(query)) ||
-      (user.email && user.email.toLowerCase().includes(query))
+      u.fullname?.toLowerCase().includes(query) || u.email?.toLowerCase().includes(query)
     );
   });
 });
 
-// ✅ Computed สำหรับตัดข้อมูลตามหน้า (Pagination)
 const paginatedItems = computed(() => {
   const list =
     activeTab.value === "reports" ? filteredReports.value : filteredUsers.value;
-
   const start = (currentPage.value - 1) * itemsPerPage;
-  const end = start + itemsPerPage;
-  return list.slice(start, end);
+  return list.slice(start, start + itemsPerPage);
 });
 
-// ✅ คำนวณจำนวนหน้าทั้งหมด
 const totalPages = computed(() => {
   const list =
     activeTab.value === "reports" ? filteredReports.value : filteredUsers.value;
   return Math.ceil(list.length / itemsPerPage);
 });
 
-const changePage = (page) => {
-  if (page >= 1 && page <= totalPages.value) {
-    currentPage.value = page;
-  }
-};
-
-const switchTab = (tabName) => {
-  activeTab.value = tabName;
+const changePage = (p) => (currentPage.value = p);
+const switchTab = (tab) => {
+  activeTab.value = tab;
   currentPage.value = 1;
-  searchText.value = ""; 
 };
-
-watch([searchText, filterStatus], () => {
-  currentPage.value = 1;
-});
 
 const getAuthConfig = () => ({
   headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
 });
 
-// ✅ 2. แก้ไขการดึงข้อมูลให้ตรงกับ Endpoint ใหม่
+// ✅ ดึงข้อมูลจาก Backend
 const fetchData = async () => {
   loading.value = true;
   try {
     const config = getAuthConfig();
     const [reportsRes, usersRes] = await Promise.all([
-      axios.get(`${API_URL}/admin/reports`, config), // ใช้ route admin
-      axios.get(`${API_URL}/users`, config)          // ใช้ route users
+      axios.get(`${API_URL}/reports`, config),
+      axios.get(`${API_URL}/users`, config),
     ]);
     reports.value = reportsRes.data;
     users.value = usersRes.data;
   } catch (err) {
-    console.error("Fetch Data Error:", err);
-    if (err.response?.status === 401) {
-      router.push("/login");
-    }
+    if (err.response?.status === 401) router.push("/login");
+  } finally {
+    loading.value = false;
   }
-  loading.value = false;
 };
 
+// ✅ ดูรายละเอียดพิกัด
 const viewAndForward = (report) => {
-  // ✅ 3. แก้ลิงก์ Google Maps ให้ถูกต้อง
-  const mapLink = `https://www.google.com/maps/search/?api=1&query=${report.latitude},${report.longitude}`;
-
+  const mapLink = `https://www.google.com/maps?q=${report.latitude},${report.longitude}`;
   Swal.fire({
-    title: `<strong>${report.title}</strong>`,
+    title: `พิกัดขยะ: ${report.title}`,
     html: `
-      <div style="text-align: left; font-size: 0.95rem;">
-        <img src="${getImageUrl(report.image_url)}" 
-             style="width:100%; max-height:250px; object-fit:cover; border-radius:12px; margin-bottom:15px; box-shadow: 0 4px 10px rgba(0,0,0,0.1);"
-             onerror="this.style.display='none'">
-        <div style="background:#f9f9f9; padding:15px; border-radius:10px; margin-bottom:15px;">
-          <p class="mb-1"><strong>👤 ผู้แจ้ง:</strong> ${report.username || "ไม่ระบุ"}</p>
-          <p class="mb-1"><strong>📞 เบอร์โทร:</strong> ${report.contact || "-"}</p>
-          <p class="mb-1"><strong>📝 รายละเอียด:</strong> ${report.description}</p>
-          <p class="mb-0"><strong>📍 พิกัด:</strong> ${report.latitude}, ${report.longitude}</p>
-        </div>
-        <a href="${mapLink}" target="_blank" class="btn-map" style="display:block; text-align:center; background:#4285F4; color:white; padding:10px; border-radius:30px; text-decoration:none; font-weight:bold; margin-bottom:15px;">
-          <i class="bi bi-geo-alt-fill"></i> เปิดใน Google Maps
-        </a>
-        <hr style="margin: 15px 0; border-color:#eee;">
-        <label style="font-weight:bold; display:block; margin-bottom:8px;">ส่งต่อไปยังหน่วยงาน:</label>
-        <select id="agency-select" class="swal2-input" style="width: 100%; margin: 0; border-radius:8px;">
-          <option value="" disabled selected>-- เลือกหน่วยงาน --</option>
-          <option value="อบต.">อบต.</option>
-          <option value="สำนักงานเขต">สำนักงานเขต</option> 
-        </select>
-      </div>
+      <img src="${getImageUrl(
+        report.image_url
+      )}" style="width:100%; border-radius:10px; margin-bottom:10px;">
+      <p style="text-align:left;"><b>รายละเอียด:</b> ${report.description}</p>
+      <a href="${mapLink}" target="_blank" style="color:blue;">📍 ดูบน Google Maps</a>
     `,
-    showCancelButton: true,
-    confirmButtonText: '<i class="bi bi-send"></i> ส่งเรื่อง',
+    confirmButtonText: "รับทราบ",
     confirmButtonColor: "#2e5936",
-    cancelButtonText: "ปิด",
-    preConfirm: () => {
-      const agency = document.getElementById("agency-select").value;
-      if (!agency) Swal.showValidationMessage("กรุณาเลือกหน่วยงาน");
-      return agency;
-    },
-  }).then((result) => {
-    if (result.isConfirmed) {
-      Swal.fire({
-        icon: "success",
-        title: "ส่งเรื่องสำเร็จ!",
-        text: `ส่งไปยัง ${result.value} เรียบร้อย`,
-        timer: 2000,
-        showConfirmButton: false,
-      });
-    }
   });
 };
 
+// ✅ อัปเดตสถานะ (เชื่อมกับ router.put('/:id/status'))
 const updateStatus = async (id, newStatus) => {
   try {
     await axios.put(
-      `${API_URL}/admin/reports/${id}/status`,
+      `${API_URL}/reports/${id}/status`,
       { status: newStatus },
       getAuthConfig()
     );
-    const Toast = Swal.mixin({
+    Swal.fire({
+      icon: "success",
+      title: "อัปเดตสำเร็จ",
       toast: true,
       position: "top-end",
-      showConfirmButton: false,
       timer: 2000,
-      timerProgressBar: true,
+      showConfirmButton: false,
     });
-    Toast.fire({ icon: "success", title: "อัปเดตสถานะเรียบร้อย" });
   } catch (err) {
-    Swal.fire("Error", "ไม่สามารถอัปเดตสถานะได้", "error");
-    fetchData(); // โหลดข้อมูลใหม่เพื่อคืนค่าเดิม
+    Swal.fire("Error", "ไม่สามารถอัปเดตได้", "error");
+    fetchData();
   }
 };
 
+// ✅ ลบรายงาน
 const deleteReport = async (id) => {
-  if (
-    await Swal.fire({
-      title: "ยืนยันการลบ?",
-      text: "คุณจะไม่สามารถกู้คืนข้อมูลนี้ได้",
-      icon: "warning",
-      showCancelButton: true,
-      confirmButtonColor: "#d33",
-      confirmButtonText: "ลบเลย",
-      cancelButtonText: "ยกเลิก"
-    }).then((r) => r.isConfirmed)
-  ) {
+  const result = await Swal.fire({
+    title: "ลบรายการนี้?",
+    icon: "warning",
+    showCancelButton: true,
+    confirmButtonText: "ลบ",
+    cancelButtonText: "ยกเลิก",
+  });
+  if (result.isConfirmed) {
     try {
-      await axios.delete(`${API_URL}/admin/reports/${id}`, getAuthConfig());
+      await axios.delete(`${API_URL}/reports/${id}`, getAuthConfig());
       fetchData();
       Swal.fire("ลบสำเร็จ", "", "success");
     } catch (err) {
-      Swal.fire("Error", "ลบข้อมูลไม่สำเร็จ", "error");
+      Swal.fire("Error", "ลบไม่ได้", "error");
     }
+  }
+};
+
+// ✅ เปลี่ยนสิทธิ์ User (ฟีเจอร์ใหม่ที่เพิ่มใน users.js)
+const changeUserRole = async (id, newRole) => {
+  try {
+    await axios.put(`${API_URL}/users/${id}/role`, { role: newRole }, getAuthConfig());
+    Swal.fire("สำเร็จ", "ตั้งค่าแอดมินคนใหม่เรียบร้อย", "success");
+    fetchData();
+  } catch (err) {
+    Swal.fire("Error", "เปลี่ยนสิทธิ์ไม่ได้", "error");
   }
 };
 
 const deleteUser = async (id) => {
-  if (
-    await Swal.fire({
-      title: "ยืนยันการลบ?",
-      text: "ผู้ใช้นี้จะไม่สามารถเข้าสู่ระบบได้อีก",
-      icon: "warning",
-      showCancelButton: true,
-      confirmButtonColor: "#d33",
-      confirmButtonText: "ลบเลย",
-      cancelButtonText: "ยกเลิก"
-    }).then((r) => r.isConfirmed)
-  ) {
+  const result = await Swal.fire({
+    title: "ลบผู้ใช้?",
+    icon: "warning",
+    showCancelButton: true,
+  });
+  if (result.isConfirmed) {
     try {
       await axios.delete(`${API_URL}/users/${id}`, getAuthConfig());
       fetchData();
-      Swal.fire("ลบสำเร็จ", "", "success");
     } catch (err) {
-      Swal.fire("Error", "ลบข้อมูลไม่สำเร็จ", "error");
+      Swal.fire("Error", "ลบไม่ได้", "error");
     }
   }
 };
 
 const logout = () => {
-  if (confirm("ต้องการออกจากระบบ?")) {
-    localStorage.clear();
-    router.push("/login");
-  }
+  localStorage.clear();
+  router.push("/login");
 };
 const goToSystemOverview = () => router.push("/system-overview");
 
@@ -500,17 +450,11 @@ const getStatusClass = (s) =>
     in_progress: "status-progress",
     resolved: "status-resolved",
   }[s]);
-
-const formatDate = (d) =>
-  new Date(d).toLocaleDateString("th-TH", {
-    year: "2-digit",
-    month: "2-digit",
-    day: "2-digit",
-  });
+const formatDate = (d) => new Date(d).toLocaleDateString("th-TH");
 
 onMounted(() => {
   const user = JSON.parse(localStorage.getItem("user") || "{}");
-  if (user.fullname) userName.value = user.fullname;
+  userName.value = user.fullname || "Admin";
   fetchData();
 });
 </script>
@@ -519,346 +463,548 @@ onMounted(() => {
 :root {
   --primary-green: #2e5936;
 }
+
 * {
   box-sizing: border-box;
 }
 
 .admin-container {
   display: flex;
+
   flex-direction: column;
+
   height: 100vh;
+
   background-image: url("/background.png");
+
   background-size: cover;
+
   font-family: "Kanit", sans-serif;
+
   overflow: hidden;
 }
+
 .header {
   background: #2e5936;
+
   color: white;
+
   padding: 15px 20px;
+
   display: flex;
+
   justify-content: space-between;
+
   align-items: center;
+
   box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
 }
+
 .user-profile {
   display: flex;
+
   align-items: center;
+
   gap: 10px;
+
   transition: opacity 0.2s;
 }
+
 .user-profile:hover {
   opacity: 0.8;
 }
+
 .profile-img {
   width: 40px;
+
   height: 40px;
+
   border-radius: 50%;
+
   border: 2px solid white;
+
   object-fit: cover;
 }
+
 .logout-btn {
   background: #ddd;
+
   color: #333;
+
   border: none;
+
   padding: 8px 20px;
+
   border-radius: 20px;
+
   cursor: pointer;
+
   font-weight: 600;
 }
 
 .container {
   display: flex;
+
   flex: 1;
+
   max-width: 1200px;
+
   margin: 20px auto;
+
   gap: 20px;
+
   padding: 0 10px;
+
   overflow-y: auto;
 }
+
 .sidebar {
   width: 250px;
+
   flex-shrink: 0;
+
   display: flex;
+
   flex-direction: column;
+
   gap: 15px;
 }
+
 .banner-box {
   background: white;
+
   border-radius: 15px;
+
   overflow: hidden;
 }
+
 .banner-box img {
   width: 100%;
+
   display: block;
 }
+
 .nav-menu {
   background: white;
+
   border-radius: 15px;
+
   padding: 20px;
+
   display: flex;
+
   flex-direction: column;
+
   gap: 8px;
 }
 
 .menu-btn {
   background: #f8f9fa;
+
   border: 1px solid #eee;
+
   padding: 12px 15px;
+
   border-radius: 10px;
+
   cursor: pointer;
+
   text-align: left;
+
   font-weight: 500;
+
   font-family: "Kanit";
+
   transition: all 0.2s;
+
   color: #555;
+
   display: flex;
+
   align-items: center;
+
   gap: 10px;
+
   font-size: 0.95rem;
 }
+
 .menu-btn:hover {
   background-color: #f0f0f0;
+
   transform: translateX(3px);
 }
+
 .menu-btn i {
   font-size: 1.1rem;
+
   color: #777;
+
   width: 20px;
+
   text-align: center;
 }
 
 /* ✅ Active Button Style */
+
 .active-btn {
   background: #2e5936;
+
   color: white;
+
   border-color: #2e5936;
+
   box-shadow: 0 4px 10px rgba(46, 89, 54, 0.2);
 }
+
 .active-btn:hover {
   background-color: #2e5936;
+
   transform: none;
 }
+
 .active-btn i {
   color: white;
 }
 
 .menu-divider {
   height: 1px;
+
   background: #eee;
+
   margin: 5px 0;
 }
 
 .main-content {
   flex-grow: 1;
+
   display: flex;
+
   flex-direction: column;
+
   padding-bottom: 20px;
 }
 
 .search-bar {
   background-color: white;
+
   padding: 10px;
+
   border-radius: 12px;
+
   display: flex;
+
   gap: 10px;
+
   margin-bottom: 20px;
+
   border: 1px solid #ddd;
+
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
 }
+
 .search-input {
   flex-grow: 1;
+
   padding: 10px 15px;
+
   border-radius: 8px;
+
   border: 1px solid #eee;
+
   outline: none;
+
   font-family: "Kanit";
+
   background-color: #f9f9f9;
 }
+
 .category-select {
   padding: 10px 15px;
+
   border-radius: 8px;
+
   border: 1px solid #eee;
+
   background-color: #f9f9f9;
+
   cursor: pointer;
+
   font-family: "Kanit";
 }
 
 .table-card {
   background: white;
+
   border-radius: 20px;
+
   padding: 20px;
+
   box-shadow: 0 10px 20px rgba(0, 0, 0, 0.05);
+
   overflow: hidden;
+
   display: flex;
+
   flex-direction: column;
 }
+
 .custom-table {
   width: 100%;
+
   border-collapse: collapse;
 }
+
 .custom-table th {
   background: #f8f9fa;
+
   padding: 15px;
+
   text-align: left;
+
   color: #666;
+
   font-weight: 600;
+
   border-bottom: 2px solid #eee;
 }
+
 .custom-table td {
   padding: 15px;
+
   border-bottom: 1px solid #f0f0f0;
+
   vertical-align: middle;
 }
+
 .custom-table tr:hover {
   background-color: #f9fdf9;
 }
 
 .img-wrapper {
   width: 50px;
+
   height: 50px;
+
   border-radius: 10px;
+
   overflow: hidden;
+
   border: 1px solid #eee;
 }
+
 .img-wrapper.circle {
   border-radius: 50%;
 }
+
 .img-wrapper img {
   width: 100%;
+
   height: 100%;
+
   object-fit: cover;
 }
 
 .status-select {
   padding: 6px 12px;
+
   border-radius: 20px;
+
   border: none;
+
   font-weight: 600;
+
   font-size: 0.85rem;
+
   cursor: pointer;
+
   text-align: center;
+
   width: 100%;
 }
+
 .status-pending {
   background: #fff3cd;
+
   color: #856404;
 }
+
 .status-progress {
   background: #cff4fc;
+
   color: #055160;
 }
+
 .status-resolved {
   background: #d1e7dd;
+
   color: #0f5132;
 }
 
 .role-badge {
   padding: 5px 12px;
+
   border-radius: 15px;
+
   font-size: 0.85rem;
+
   font-weight: 600;
 }
+
 .role-admin {
   background-color: #f8d7da;
+
   color: #721c24;
 }
+
 .role-user {
   background-color: #d1e7dd;
+
   color: #0f5132;
 }
 
 .action-buttons {
   display: flex;
+
   justify-content: center;
+
   gap: 10px;
 }
+
 .btn-icon {
   background: white;
+
   border: 1px solid #eee;
+
   width: 35px;
+
   height: 35px;
+
   border-radius: 50%;
+
   display: flex;
+
   align-items: center;
+
   justify-content: center;
+
   cursor: pointer;
+
   transition: 0.2s;
+
   box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
 }
+
 .btn-icon:hover {
   transform: translateY(-2px);
+
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
 }
+
 .view {
   color: #0d6efd;
 }
+
 .view:hover {
   background: #0d6efd;
+
   color: white;
 }
+
 .delete {
   color: #dc3545;
 }
+
 .delete:hover {
   background: #dc3545;
+
   color: white;
 }
+
 .empty-row {
   text-align: center;
+
   padding: 40px;
+
   color: #999;
+
   font-style: italic;
 }
 
 .loading-text {
   font-size: 1.2rem;
+
   color: #666;
+
   font-weight: bold;
 }
 
 /* ✅ CSS สำหรับ Pagination Bar */
+
 .pagination-container {
   display: flex;
+
   justify-content: center;
+
   align-items: center;
+
   gap: 10px;
+
   margin-top: 20px;
+
   padding: 10px;
+
   padding-bottom: 20px;
 }
 
 .page-btn {
   width: 40px;
+
   height: 40px;
+
   border-radius: 50%;
+
   border: 1px solid #ddd;
+
   background: white;
+
   color: #555;
+
   cursor: pointer;
+
   font-family: "Kanit";
+
   font-weight: 600;
+
   display: flex;
+
   justify-content: center;
+
   align-items: center;
+
   transition: all 0.2s;
 }
 
 .page-btn:hover:not(:disabled) {
   background-color: #f0f0f0;
+
   border-color: #ccc;
 }
 
 .page-btn.active {
   background-color: #2e5936;
+
   color: white;
+
   border-color: #2e5936;
+
   box-shadow: 0 4px 10px rgba(46, 89, 54, 0.3);
 }
 
 .page-btn:disabled {
   color: #ccc;
+
   cursor: not-allowed;
+
   background-color: #fafafa;
 }
 
@@ -866,16 +1012,21 @@ onMounted(() => {
   .container {
     flex-direction: column;
   }
+
   .sidebar {
     width: 100%;
   }
+
   .nav-menu {
     flex-direction: row;
+
     flex-wrap: wrap;
   }
+
   .menu-btn {
     flex: 1;
   }
+
   .table-responsive {
     overflow-x: auto;
   }
