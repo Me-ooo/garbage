@@ -131,9 +131,7 @@
                     <img
                       :src="getImageUrl(report.image_url)"
                       class="table-img"
-                      @error="
-                        $event.target.src = 'https://placehold.co/50x50?text=No+Img'
-                      "
+                      @error="$event.target.src = 'https://placehold.co/50x50?text=No+Img'"
                     />
                   </div>
                 </td>
@@ -222,14 +220,24 @@
                   </span>
                 </td>
                 <td class="text-center">
-                  <button
-                    v-if="user.role !== 'admin'"
-                    class="btn-icon delete"
-                    @click="deleteUser(user.id)"
-                    title="ลบผู้ใช้"
-                  >
-                    <i class="bi bi-trash-fill"></i>
-                  </button>
+                  <div class="action-buttons">
+                    <button 
+                      v-if="user.role !== 'admin'" 
+                      class="btn-icon view"
+                      @click="changeUserRole(user.id, 'admin')"
+                      title="ตั้งเป็น Admin"
+                    >
+                      <i class="bi bi-shield-lock-fill"></i>
+                    </button>
+                    <button
+                      v-if="user.role !== 'admin'"
+                      class="btn-icon delete"
+                      @click="deleteUser(user.id)"
+                      title="ลบผู้ใช้"
+                    >
+                      <i class="bi bi-trash-fill"></i>
+                    </button>
+                  </div>
                 </td>
               </tr>
               <tr v-if="filteredUsers.length === 0">
@@ -246,13 +254,13 @@
 </template>
 
 <script setup>
-import { ref, onMounted, watch, computed } from "vue";
+import { ref, onMounted, computed } from "vue";
 import axios from "axios";
 import Swal from "sweetalert2";
 import { useRouter } from "vue-router";
 
 const router = useRouter();
-const API_URL = import.meta.env.VITE_API_BASE_URL; // ✅ ดึง URL API กลาง
+const API_URL = import.meta.env.VITE_API_BASE_URL;
 
 const activeTab = ref("reports");
 const reports = ref([]);
@@ -263,11 +271,12 @@ const userName = ref("Admin");
 const searchText = ref("");
 const filterStatus = ref("all");
 
-// ✅ ฟังก์ชันกลางสำหรับจัดการ URL รูปภาพ
+// ✅ ฟังก์ชันจัดการ URL รูปภาพ
 const getImageUrl = (path) => {
   if (!path) return "";
-  if (path.startsWith("http")) return path; // รูปจาก Google
-  const baseUrl = API_URL.replace("/api", ""); // ตัด /api ออก
+  if (path.startsWith("http")) return path;
+  // ตัด /api ออก เพื่อให้ได้ http://localhost:3000/uploads/...
+  const baseUrl = API_URL.replace("/api", ""); 
   return `${baseUrl}${path}`;
 };
 
@@ -317,9 +326,9 @@ const fetchData = async () => {
   loading.value = true;
   try {
     const config = getAuthConfig();
-    // ดึงข้อมูลทั้ง Reports (ผ่าน route admin) และ Users
+    // ✅ เรียก API Admin Reports และ Users
     const [reportsRes, usersRes] = await Promise.all([
-      axios.get(`${API_URL}/admin/reports`, config),
+      axios.get(`${API_URL}/admin/reports`, config), // ตรวจสอบ route admin.js ว่าใช้ path นี้
       axios.get(`${API_URL}/users`, config),
     ]);
     reports.value = reportsRes.data;
@@ -338,8 +347,10 @@ const fetchData = async () => {
   loading.value = false;
 };
 
+// ✅ ดูรายละเอียดและส่งต่อ (แก้ไขลิงก์ Google Maps)
 const viewAndForward = (report) => {
-  const mapLink = `https://www.google.com/maps/search/?api=1&query=${report.latitude},${report.longitude}`;
+  // ใช้ Syntax ${} ให้ถูกต้อง
+  const mapLink = `http://googleusercontent.com/maps.google.com/maps?q=${report.latitude},${report.longitude}`;
 
   Swal.fire({
     title: `<strong>${report.title}</strong>`,
@@ -354,9 +365,7 @@ const viewAndForward = (report) => {
           <p class="mb-1"><strong>👤 ผู้แจ้ง:</strong> ${report.username || "ไม่ระบุ"}</p>
           <p class="mb-1"><strong>📞 เบอร์โทร:</strong> ${report.contact || "-"}</p>
           <p class="mb-1"><strong>📝 รายละเอียด:</strong> ${report.description}</p>
-          <p class="mb-0"><strong>📍 พิกัด:</strong> ${report.latitude}, ${
-      report.longitude
-    }</p>
+          <p class="mb-0"><strong>📍 พิกัด:</strong> ${report.latitude}, ${report.longitude}</p>
         </div>
         <a href="${mapLink}" target="_blank" class="btn-map" style="display:block; text-align:center; background:#4285F4; color:white; padding:10px; border-radius:30px; text-decoration:none; font-weight:bold; margin-bottom:15px;">
           <i class="bi bi-geo-alt-fill"></i> เปิดใน Google Maps
@@ -409,7 +418,7 @@ const updateStatus = async (id, newStatus) => {
     }).fire({ icon: "success", title: "อัปเดตสถานะเรียบร้อย" });
   } catch (err) {
     Swal.fire("Error", "ไม่สามารถอัปเดตสถานะได้", "error");
-    fetchData();
+    fetchData(); // โหลดข้อมูลใหม่คืนค่าเดิม
   }
 };
 
@@ -417,6 +426,7 @@ const deleteReport = async (id) => {
   if (
     await Swal.fire({
       title: "ยืนยันการลบ?",
+      text: "ข้อมูลนี้จะถูกลบออกจากระบบ",
       icon: "warning",
       showCancelButton: true,
       confirmButtonColor: "#d33",
@@ -434,6 +444,7 @@ const deleteUser = async (id) => {
   if (
     await Swal.fire({
       title: "ยืนยันการลบ?",
+      text: "ผู้ใช้นี้จะถูกลบออกจากระบบ",
       icon: "warning",
       showCancelButton: true,
       confirmButtonColor: "#d33",
@@ -444,6 +455,17 @@ const deleteUser = async (id) => {
     await axios.delete(`${API_URL}/users/${id}`, getAuthConfig());
     fetchData();
     Swal.fire("ลบสำเร็จ", "", "success");
+  }
+};
+
+// ✅ เพิ่มฟังก์ชันเปลี่ยนสิทธิ์ (สำหรับปุ่มโล่ที่เพิ่มมา)
+const changeUserRole = async (id, role) => {
+  try {
+    await axios.put(`${API_URL}/users/${id}/role`, { role }, getAuthConfig());
+    Swal.fire("สำเร็จ", "เปลี่ยนสิทธิ์ผู้ใช้เรียบร้อย", "success");
+    fetchData();
+  } catch (err) {
+    Swal.fire("Error", "เปลี่ยนสิทธิ์ไม่ได้", "error");
   }
 };
 
@@ -475,6 +497,7 @@ onMounted(() => {
 </script>
 
 <style scoped>
+/* Style เดิมของคุณ */
 :root {
   --primary-green: #2e5936;
 }

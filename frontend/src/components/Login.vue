@@ -2,22 +2,21 @@
 import { ref, onMounted } from "vue";
 import { useRouter } from "vue-router";
 import axios from "axios";
-// import { googleOneTap } from 'vue3-google-login' // ถ้าจะใช้ Google One Tap
 
 const router = useRouter();
 const form = ref({ email: "", password: "" });
 const errorMessage = ref("");
 const isLoading = ref(false);
 
+// ดึงค่าจาก .env (http://localhost:3000/api)
 const API_URL = import.meta.env.VITE_API_BASE_URL;
 
 // ==========================================
-// ⚙️ ตั้งค่า Facebook App ID ที่นี่ (ถ้าจะใช้จริง)
+// ⚙️ ตั้งค่า Facebook App ID (สำหรับ Mock ไม่ต้องใช้จริงก็ได้)
 // ==========================================
-const FACEBOOK_APP_ID = "YOUR_FB_APP_ID"; // ใส่ App ID จาก developers.facebook.com
-const USE_REAL_FACEBOOK = false; // ⚠️ เปลี่ยนเป็น true ถ้าจะใช้ Facebook จริง
+const FACEBOOK_APP_ID = "YOUR_FB_APP_ID";
+const USE_REAL_FACEBOOK = false; // ⚠️ ตั้งเป็น false เพื่อใช้ระบบจำลอง (Mock) จะได้ไม่ติดปัญหาบน Localhost
 
-// --- 0. โหลด Facebook SDK เมื่อเปิดหน้าเว็บ ---
 onMounted(() => {
   if (USE_REAL_FACEBOOK) {
     initFacebookSDK();
@@ -34,13 +33,10 @@ const initFacebookSDK = () => {
       version: "v18.0",
     });
   };
-  // Inject Script
   (function (d, s, id) {
     var js,
       fjs = d.getElementsByTagName(s)[0];
-    if (d.getElementById(id)) {
-      return;
-    }
+    if (d.getElementById(id)) return;
     js = d.createElement(s);
     js.id = id;
     js.src = "https://connect.facebook.net/en_US/sdk.js";
@@ -58,7 +54,7 @@ const handleLogin = async () => {
   errorMessage.value = "";
 
   try {
-    // แก้ไขตรงนี้: ส่ง form.value ไปแทน loginData
+    // ✅ ยิงไปที่ /auth/login
     const response = await axios.post(`${API_URL}/auth/login`, form.value);
     if (response.status === 200) processLogin(response.data);
   } catch (error) {
@@ -68,7 +64,7 @@ const handleLogin = async () => {
   }
 };
 
-// --- 2. Login Google (Mock/Simple) ---
+// --- 2. Login Google (Mock) ---
 const loginWithGoogle = async () => {
   isLoading.value = true;
   try {
@@ -76,7 +72,7 @@ const loginWithGoogle = async () => {
       email: `google_${Math.floor(Math.random() * 10000)}@gmail.com`,
       name: "Google User (Mock)",
     };
-    // เพิ่ม /auth/ เข้าไปให้ตรงกับ server.js
+    // ✅ แก้ path ให้มี /auth/
     const res = await axios.post(`${API_URL}/auth/google-login-simple`, mockUser);
     processLogin(res.data);
   } catch (error) {
@@ -87,12 +83,11 @@ const loginWithGoogle = async () => {
   }
 };
 
-// --- 3. Login Facebook (Real & Mock) ---
+// --- 3. Login Facebook (Mock) ---
 const loginWithFacebook = async () => {
   errorMessage.value = "";
 
   if (!USE_REAL_FACEBOOK) {
-    // === แบบ A: จำลอง (Mock) - ใช้ง่าย ผ่านแน่นอน ===
     isLoading.value = true;
     setTimeout(async () => {
       try {
@@ -100,47 +95,18 @@ const loginWithFacebook = async () => {
           email: `fb_${Math.floor(Math.random() * 10000)}@facebook.com`,
           name: "Facebook User (Mock)",
         };
-        // ยิงไปที่ API เดียวกันได้เลย
-        const res = await axios.post(`${API_URL}/google-login-simple`, mockUser);
+        // ✅ แก้ path ให้มี /auth/ และใช้ endpoint เดียวกับ Google ได้เลยสำหรับ Mock
+        const res = await axios.post(`${API_URL}/auth/google-login-simple`, mockUser);
         processLogin(res.data);
       } catch (e) {
         errorMessage.value = "Facebook Login Failed";
       } finally {
         isLoading.value = false;
       }
-    }, 800); // หน่วงเวลานิดนึงให้ดูเหมือนโหลดจริง
+    }, 800);
   } else {
-    // === แบบ B: ของจริง (ต้องมี App ID) ===
-    if (!window.FB) {
-      alert("Facebook SDK ยังโหลดไม่เสร็จ หรือ AdBlock บังอยู่");
-      return;
-    }
-
-    window.FB.login(
-      function (response) {
-        if (response.authResponse) {
-          isLoading.value = true;
-          // ดึงข้อมูลชื่อและอีเมล
-          window.FB.api("/me", { fields: "name, email" }, async function (userInfo) {
-            try {
-              // ส่งข้อมูลไปให้ Backend (ใช้ route เดิมได้เลย Logic เหมือนกัน)
-              const res = await axios.post(`${API_URL}/google-login-simple`, {
-                email: userInfo.email || `${userInfo.id}@facebook.com`, // บางที FB ไม่ให้อีเมล
-                name: userInfo.name,
-              });
-              processLogin(res.data);
-            } catch (err) {
-              errorMessage.value = "เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์";
-            } finally {
-              isLoading.value = false;
-            }
-          });
-        } else {
-          errorMessage.value = "คุณยกเลิกการเชื่อมต่อ Facebook";
-        }
-      },
-      { scope: "public_profile,email" }
-    );
+    // โค้ด Facebook จริง (ข้ามไปก่อนสำหรับ Localhost)
+    alert("Facebook Real Mode not configured for Localhost");
   }
 };
 
@@ -151,7 +117,7 @@ const processLogin = (data) => {
   if (data.user.role === "admin") {
     router.push("/system-overview");
   } else {
-    router.push("/");
+    router.push("/"); // หรือ /reportpage
   }
 };
 
@@ -160,7 +126,7 @@ const handleError = (error) => {
     errorMessage.value =
       error.response.data.message || "ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง";
   } else {
-    errorMessage.value = "เชื่อมต่อเซิร์ฟเวอร์ไม่ได้";
+    errorMessage.value = "เชื่อมต่อเซิร์ฟเวอร์ไม่ได้ (ตรวจสอบ Backend)";
   }
 };
 
@@ -181,14 +147,14 @@ const goToRegister = () => router.push("/register");
     <div class="login-card">
       <h2 class="title">เข้าสู่ระบบ</h2>
 
-      <div class="form-container">
+      <form @submit.prevent="handleLogin" class="form-container">
         <div class="input-box">
           <span class="input-icon">👤</span>
           <input
             v-model="form.email"
             type="text"
             placeholder="ชื่อผู้ใช้ / อีเมล"
-            @keyup.enter="handleLogin"
+            required
           />
         </div>
 
@@ -198,7 +164,7 @@ const goToRegister = () => router.push("/register");
             v-model="form.password"
             type="password"
             placeholder="รหัสผ่าน"
-            @keyup.enter="handleLogin"
+            required
           />
         </div>
 
@@ -206,20 +172,30 @@ const goToRegister = () => router.push("/register");
           {{ errorMessage }}
         </div>
 
-        <button @click="handleLogin" class="btn-submit" :disabled="isLoading">
+        <button type="submit" class="btn-submit" :disabled="isLoading">
           {{ isLoading ? "กำลังตรวจสอบ..." : "เข้าสู่ระบบ" }}
         </button>
 
         <p class="link-text" @click="goToRegister">สมัครสมาชิก</p>
 
         <div class="social-section">
-          <button class="btn-facebook" @click="loginWithFacebook" :disabled="isLoading">
+          <button
+            type="button"
+            class="btn-facebook"
+            @click="loginWithFacebook"
+            :disabled="isLoading"
+          >
             <span class="fb-icon">f</span> Login with Facebook
           </button>
 
           <p class="divider-text">หรือ</p>
 
-          <button class="btn-google" @click="loginWithGoogle" :disabled="isLoading">
+          <button
+            type="button"
+            class="btn-google"
+            @click="loginWithGoogle"
+            :disabled="isLoading"
+          >
             <img
               src="/google.png"
               alt="G"
@@ -229,7 +205,7 @@ const goToRegister = () => router.push("/register");
             Login with Google
           </button>
         </div>
-      </div>
+      </form>
     </div>
   </div>
 </template>

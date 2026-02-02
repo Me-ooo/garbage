@@ -170,8 +170,19 @@ import axios from "axios";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 
+// ⚠️ แก้ Bug Icon Leaflet หาย
+import icon from "leaflet/dist/images/marker-icon.png";
+import iconShadow from "leaflet/dist/images/marker-shadow.png";
+
+let DefaultIcon = L.icon({
+  iconUrl: icon,
+  shadowUrl: iconShadow,
+  iconSize: [25, 41],
+  iconAnchor: [12, 41],
+});
+L.Marker.prototype.options.icon = DefaultIcon;
+
 const router = useRouter();
-// ✅ 1. ใช้ URL กลางจาก .env
 const API_URL = import.meta.env.VITE_API_BASE_URL;
 
 const userName = ref("Guest");
@@ -191,26 +202,27 @@ const menuItems = [
 ];
 
 const formData = ref({
-  category: "",
+  category: "", // ใช้ประกอบ Title แทนเพราะ DB ไม่มีช่องนี้
   title: "",
-  latitude: 13.7563, // Default (Bangkok)
+  latitude: 13.7563,
   longitude: 100.5018,
   description: "",
   contact: "",
   image: null,
 });
 
-// ✅ 2. Computed จัดการรูปโปรไฟล์ให้ถูกต้อง
+const getImageUrl = (path) => {
+  if (!path) return "/admin-profile.png";
+  if (path.startsWith("http")) return path;
+  const baseUrl = API_URL.replace("/api", "");
+  return `${baseUrl}${path}`;
+};
+
 const userImage = computed(() => {
   const userStr = localStorage.getItem("user");
   if (userStr) {
     const user = JSON.parse(userStr);
-    if (user.image_url) {
-      if (user.image_url.startsWith("http")) return user.image_url;
-      // ตัด /api ออก ถ้า path มีอยู่แล้ว หรือถ้าใช้ Base URL ตรงๆ
-      const baseUrl = API_URL.replace("/api", "");
-      return `${baseUrl}${user.image_url}`;
-    }
+    return user.image_url ? getImageUrl(user.image_url) : "/admin-profile.png";
   }
   return "/admin-profile.png";
 });
@@ -222,7 +234,6 @@ onMounted(() => {
     userName.value = user.fullname || user.username || "Guest";
   }
 
-  // ✅ 3. รอให้ DOM โหลดเสร็จก่อนสร้าง Map
   nextTick(() => {
     initializeMap();
   });
@@ -231,7 +242,6 @@ onMounted(() => {
 const initializeMap = () => {
   if (!mapContainer.value) return;
 
-  // ถ้ามีแมพอยู่แล้วให้ลบก่อน (กัน Error เวลาเข้าหน้าซ้ำ)
   if (map.value) {
     map.value.remove();
   }
@@ -255,7 +265,6 @@ const initializeMap = () => {
     formData.value.longitude = lng.toFixed(6);
   });
 
-  // แก้ปัญหา Map แสดงผลไม่เต็ม
   setTimeout(() => {
     map.value.invalidateSize();
   }, 100);
@@ -265,23 +274,7 @@ const addMarker = (lat, lng) => {
   if (marker.value) {
     map.value.removeLayer(marker.value);
   }
-  // Custom Icon เพื่อความสวยงาม
-  const defaultIcon = L.icon({
-    iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
-    shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
-    iconSize: [25, 41],
-    iconAnchor: [12, 41],
-    popupAnchor: [1, -34],
-  });
-
-  marker.value = L.marker([lat, lng], { icon: defaultIcon }).addTo(map.value);
-  marker.value
-    .bindPopup(
-      `<b>จุดแจ้งเหตุ</b><br/>Lat: ${Number(lat).toFixed(4)}<br/>Lng: ${Number(
-        lng
-      ).toFixed(4)}`
-    )
-    .openPopup();
+  marker.value = L.marker([lat, lng]).addTo(map.value);
 };
 
 const handleImageUpload = (event) => {
@@ -328,8 +321,8 @@ const handleSubmit = async () => {
 
   try {
     const data = new FormData();
-    data.append("category", formData.value.category);
-    data.append("title", formData.value.title);
+    // รวม Category เข้ากับ Title เพื่อให้ดูง่ายใน DB ที่ไม่มี column category
+    data.append("title", `[${formData.value.category}] ${formData.value.title}`);
     data.append("description", formData.value.description);
     data.append("latitude", formData.value.latitude);
     data.append("longitude", formData.value.longitude);
@@ -344,7 +337,8 @@ const handleSubmit = async () => {
 
     const token = localStorage.getItem("token");
 
-    // ✅ 4. ส่งไปที่ API_URL ที่ถูกต้อง
+    // ✅ ส่งไปที่ /reports (ไม่ต้องมี /api เพราะ API_URL มีแล้ว หรือถ้าไม่มีก็ใส่เพิ่ม)
+    // เช็ค .env ด้วยว่า VITE_API_BASE_URL=http://localhost:3000/api
     await axios.post(`${API_URL}/reports`, data, {
       headers: {
         Authorization: `Bearer ${token}`,
@@ -354,9 +348,8 @@ const handleSubmit = async () => {
 
     successMessage.value = "✓ แจ้งปัญหาเรียบร้อยแล้ว!";
 
-    // รอสักนิดค่อยเปลี่ยนหน้า
     setTimeout(() => {
-      router.push("/");
+      router.push("/"); // กลับหน้าแรก (หรือ /reportpage ถ้าอยากให้อยู่ที่เดิม)
     }, 1500);
   } catch (error) {
     console.error(error);
@@ -386,6 +379,7 @@ const handleLogout = () => {
 </script>
 
 <style scoped>
+/* Style เดิมของคุณ */
 * {
   box-sizing: border-box;
 }
@@ -402,7 +396,6 @@ const handleLogout = () => {
   overflow: hidden;
 }
 
-/* Header */
 .header {
   background-color: #2e5936;
   color: white;
@@ -446,7 +439,6 @@ const handleLogout = () => {
   background-color: #ccc;
 }
 
-/* Container */
 .container {
   display: flex;
   flex: 1;
@@ -458,7 +450,6 @@ const handleLogout = () => {
   overflow-y: auto;
 }
 
-/* Sidebar */
 .sidebar {
   width: 200px;
   flex-shrink: 0;
@@ -487,7 +478,6 @@ const handleLogout = () => {
   background-color: #e0e0e0;
 }
 
-/* Main Content */
 .main-content {
   flex: 1;
   background-color: white;
@@ -523,7 +513,6 @@ const handleLogout = () => {
   gap: 8px;
 }
 
-/* Upload & Form */
 .upload-section {
   display: flex;
   justify-content: center;
@@ -615,7 +604,6 @@ const handleLogout = () => {
   color: #2e5936;
 }
 
-/* Buttons & Alerts */
 .button-group {
   display: flex;
   gap: 10px;
@@ -670,7 +658,6 @@ const handleLogout = () => {
   color: #721c24;
 }
 
-/* Responsive */
 @media (max-width: 768px) {
   .container {
     flex-direction: column;

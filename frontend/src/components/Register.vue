@@ -1,7 +1,8 @@
 <script setup>
 import { ref } from "vue";
 import axios from "axios";
-import { useRouter } from "vue-router"; 
+import { useRouter } from "vue-router";
+import Swal from "sweetalert2"; // ใช้ SweetAlert2 แทน alert
 
 const router = useRouter();
 const API_URL = import.meta.env.VITE_API_BASE_URL;
@@ -17,33 +18,47 @@ const reg = ref({
 });
 
 const handleRegister = async () => {
-  // 1. ตรวจสอบความถูกต้อง
+  // 1. ตรวจสอบความถูกต้อง (Validation)
+  if (!reg.value.fullname || !reg.value.email || !reg.value.password) {
+    return Swal.fire("แจ้งเตือน", "กรุณากรอกข้อมูลให้ครบถ้วน", "warning");
+  }
+
   if (reg.value.password !== reg.value.confirmPassword) {
-    return alert("รหัสผ่านไม่ตรงกัน");
+    return Swal.fire(
+      "รหัสผ่านไม่ตรงกัน",
+      "กรุณากรอกรหัสผ่านให้ตรงกันทั้งสองช่อง",
+      "error"
+    );
   }
+
   if (!reg.value.accept) {
-    return alert("กรุณายอมรับเงื่อนไข");
+    return Swal.fire("เงื่อนไขการใช้งาน", "กรุณายอมรับเงื่อนไขก่อนสมัครสมาชิก", "info");
   }
-  
+
   try {
     // 2. ส่งข้อมูลไป Backend
-    // แก้ไข URL จาก /api/register เป็น /api/auth
-    // และแนะนำให้ใช้ตัวแปร API_URL จาก .env แทนการพิมพ์ localhost ตรงๆ
+    // ยิงไปที่ POST /api/auth (ซึ่งใน auth.js คือ router.post('/'))
     await axios.post(`${API_URL}/auth`, {
       fullname: reg.value.fullname,
       phone: reg.value.phone,
       email: reg.value.email,
-      password: reg.value.password
+      password: reg.value.password,
     });
 
-    // 3. ถ้าสำเร็จ ให้แจ้งเตือนและเด้งไปหน้า Login
-    alert("สมัครสมาชิกสำเร็จ! กรุณาเข้าสู่ระบบ");
-    router.push("/login");
-
+    // 3. แจ้งเตือนสำเร็จ
+    Swal.fire({
+      icon: "success",
+      title: "สมัครสมาชิกสำเร็จ!",
+      text: "ระบบกำลังพาท่านไปหน้าเข้าสู่ระบบ...",
+      timer: 2000,
+      showConfirmButton: false,
+    }).then(() => {
+      router.push("/login");
+    });
   } catch (err) {
     console.error(err);
     const msg = err.response?.data?.message || "เกิดข้อผิดพลาดในการสมัครสมาชิก";
-    alert(msg);
+    Swal.fire("เกิดข้อผิดพลาด", msg, "error");
   }
 };
 </script>
@@ -105,7 +120,7 @@ const handleRegister = async () => {
 </template>
 
 <style scoped>
-/* พื้นหลังเต็มจอและจัดกึ่งกลาง */
+/* Style เดิมของคุณ */
 .register-page {
   width: 100vw;
   height: 100vh;
@@ -114,7 +129,7 @@ const handleRegister = async () => {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  background-image: url("/background.png"); /* ใช้รูปเดียวกับหน้า Login */
+  background-image: url("/background.png");
   background-size: 100% 100%;
   background-position: center;
   background-repeat: no-repeat;
@@ -129,7 +144,6 @@ const handleRegister = async () => {
   text-shadow: 0 2px 4px rgba(255, 255, 255, 0.5);
 }
 
-/* กล่องขาว */
 .register-card {
   background-color: white;
   padding: 40px;
@@ -145,7 +159,6 @@ const handleRegister = async () => {
   gap: 15px;
 }
 
-/* กรอบ Input */
 .input-wrapper {
   border: 2px solid #e2e8f0;
   border-radius: 50px;
@@ -174,7 +187,6 @@ const handleRegister = async () => {
   background: transparent;
 }
 
-/* Checkbox */
 .checkbox-group {
   display: flex;
   align-items: center;
@@ -188,7 +200,6 @@ const handleRegister = async () => {
   cursor: pointer;
 }
 
-/* ปุ่มเขียว */
 .btn-register {
   background-color: #4a7c44;
   color: white;

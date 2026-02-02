@@ -40,13 +40,8 @@
           <button class="menu-btn" @click="goToAdmin('users')">
             <i class="bi bi-people-fill"></i> รายชื่อผู้ใช้
           </button>
-
-          <div class="spacer"></div>
-          
-          <button class="menu-btn back-home-btn" @click="goToHome">
-            <i class="bi bi-house-fill"></i> กลับหน้าหลัก
-          </button>
         </div>
+
       </aside>
 
       <main class="main-content">
@@ -65,6 +60,7 @@
             :totalUsers="users.length"
             :totalReports="reports.length"
             :pendingReports="pendingCount"
+            :inProgressReports="progressCount"
             :resolvedReports="resolvedCount"
           />
 
@@ -109,7 +105,8 @@
 import { ref, onMounted, computed } from "vue";
 import axios from "axios";
 import { useRouter } from "vue-router";
-import AdminStats from "./AdminStats.vue"; // ตรวจสอบ path ให้ถูกต้อง
+// ตรวจสอบ Path ให้ตรงกับที่เก็บไฟล์ (ถ้าอยู่โฟลเดอร์เดียวกันใช้ ./)
+import AdminStats from "./AdminStats.vue";
 
 const router = useRouter();
 const API_URL = import.meta.env.VITE_API_BASE_URL;
@@ -121,9 +118,10 @@ const userName = ref("Admin");
 
 // ✅ ฟังก์ชันจัดการ URL รูปภาพ
 const getImageUrl = (path) => {
-  if (!path) return '';
-  if (path.startsWith('http')) return path;
-  const baseUrl = API_URL.replace('/api', '');
+  if (!path) return "";
+  if (path.startsWith("http")) return path;
+  // ตัด /api ออก เพื่อชี้ไปที่ static file server
+  const baseUrl = API_URL.replace("/api", "");
   return `${baseUrl}${path}`;
 };
 
@@ -137,9 +135,15 @@ const userImage = computed(() => {
 });
 
 // ✅ Computed Properties สำหรับคำนวณตัวเลข
-const pendingCount = computed(() => reports.value.filter((r) => r.status === "pending").length);
-const resolvedCount = computed(() => reports.value.filter((r) => r.status === "resolved").length);
-const progressCount = computed(() => reports.value.filter((r) => r.status === "in_progress").length);
+const pendingCount = computed(
+  () => reports.value.filter((r) => r.status === "pending").length
+);
+const resolvedCount = computed(
+  () => reports.value.filter((r) => r.status === "resolved").length
+);
+const progressCount = computed(
+  () => reports.value.filter((r) => r.status === "in_progress").length
+);
 
 const fetchData = async () => {
   loading.value = true;
@@ -147,15 +151,14 @@ const fetchData = async () => {
     const token = localStorage.getItem("token");
     const config = { headers: { Authorization: `Bearer ${token}` } };
 
-    // ✅ แก้ไข: เรียก API 2 ตัวพร้อมกัน (Users และ Reports)
+    // เรียก API 2 ตัวพร้อมกัน
     const [reportsRes, usersRes] = await Promise.all([
       axios.get(`${API_URL}/admin/reports`, config),
-      axios.get(`${API_URL}/users`, config)
+      axios.get(`${API_URL}/users`, config),
     ]);
 
     reports.value = reportsRes.data;
     users.value = usersRes.data;
-
   } catch (err) {
     console.error("Fetch Error:", err);
     if (err.response?.status === 401) {
@@ -166,13 +169,13 @@ const fetchData = async () => {
   }
 };
 
-// ✅ ส่ง Query Param ไปด้วย เพื่อให้ AdminDashboard เปิดถูกแท็บ
+// ✅ ส่ง Query Param 'tab' ไปด้วย เพื่อให้ AdminDashboard เปิดถูกหน้า
 const goToAdmin = (tabName) => {
-  router.push({ path: '/admin', query: { tab: tabName } });
+  router.push({ path: "/admin", query: { tab: tabName } });
 };
 
 const goToHome = () => {
-  router.push('/');
+  router.push("/");
 };
 
 const logout = () => {
@@ -190,6 +193,7 @@ onMounted(() => {
 </script>
 
 <style scoped>
+/* Style เดิมของคุณ */
 :root {
   --primary-green: #2e5936;
 }

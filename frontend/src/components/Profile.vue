@@ -1,30 +1,29 @@
 <script setup>
-import { ref, onMounted, computed } from 'vue';
-import axios from 'axios';
-import Swal from 'sweetalert2';
-import { useRouter } from 'vue-router';
-import VueCropper from 'vue-cropperjs';
-import 'cropperjs/dist/cropper.css'; // ✅ สำคัญ! ต้อง import CSS ไม่งั้นหน้าตัดรูปจะพัง
+import { ref, onMounted, computed } from "vue";
+import axios from "axios";
+import Swal from "sweetalert2";
+import { useRouter } from "vue-router";
+import VueCropper from "vue-cropperjs";
+import "cropperjs/dist/cropper.css";
 
 const router = useRouter();
 const isLoading = ref(false);
 
-// ✅ ดึง URL จาก Environment Variable (ใช้ได้ทั้ง Local และ Vercel)
 const API_URL = import.meta.env.VITE_API_BASE_URL;
 
 // ตัวแปรสำหรับ Cropper
 const showCropper = ref(false);
-const tempImage = ref(null);    // รูปต้นฉบับที่เลือกมา
-const croppedBlob = ref(null);  // รูปที่ตัดเสร็จแล้ว (เป็นไฟล์ Blob)
-const cropper = ref(null);      // อ้างอิง component cropper
+const tempImage = ref(null); // รูปต้นฉบับที่เลือกมา
+const croppedBlob = ref(null); // รูปที่ตัดเสร็จแล้ว (เป็นไฟล์ Blob)
+const cropper = ref(null); // อ้างอิง component cropper
 const timestamp = ref(Date.now()); // ตัวช่วยแก้ Cache รูป
 
 const form = ref({
-  id: '',
-  fullname: '',
-  phone: '',
-  email: '',
-  image_url: ''
+  id: "",
+  fullname: "",
+  phone: "",
+  email: "",
+  image_url: "",
 });
 
 // ✅ Computed Property: จัดการการแสดงผลรูปภาพ
@@ -33,23 +32,24 @@ const currentImage = computed(() => {
   if (croppedBlob.value) {
     return URL.createObjectURL(croppedBlob.value);
   }
-  
+
   // 2. ถ้ามีรูปเดิมในระบบ
   if (form.value.image_url) {
     // กรณีเป็นรูปจาก Google/Facebook (มี http นำหน้า) ให้ใช้เลย
-    if (form.value.image_url.startsWith('http')) {
+    if (form.value.image_url.startsWith("http")) {
       return form.value.image_url;
     }
-    // กรณีเป็นรูปที่อัปโหลดเอง (ต้องต่อ API URL ข้างหน้า)
-    return `${API_URL}${form.value.image_url}?t=${timestamp.value}`;
+    // กรณีเป็นรูปที่อัปโหลดเอง -> ต้องตัด /api ออกเพื่อให้ชี้ไปที่ static server
+    const baseUrl = API_URL.replace("/api", "");
+    return `${baseUrl}${form.value.image_url}?t=${timestamp.value}`;
   }
-  
+
   // 3. ถ้าไม่มีอะไรเลย ใช้รูป Default
-  return '/admin-profile.png';
+  return "/admin-profile.png";
 });
 
 onMounted(() => {
-  const userStr = localStorage.getItem('user');
+  const userStr = localStorage.getItem("user");
   if (userStr) {
     const user = JSON.parse(userStr);
     form.value = { ...user };
@@ -60,77 +60,74 @@ onMounted(() => {
 const onFileChange = (event) => {
   const file = event.target.files[0];
   if (file) {
-    // เช็คประเภทไฟล์
-    if (!file.type.match('image.*')) {
-      return Swal.fire('แจ้งเตือน', 'กรุณาเลือกไฟล์รูปภาพเท่านั้น', 'warning');
+    if (!file.type.match("image.*")) {
+      return Swal.fire("แจ้งเตือน", "กรุณาเลือกไฟล์รูปภาพเท่านั้น", "warning");
     }
-    
+
     const reader = new FileReader();
     reader.onload = (e) => {
-      tempImage.value = e.target.result; // เก็บไฟล์ต้นฉบับ
-      showCropper.value = true;          // เปิด Modal
+      tempImage.value = e.target.result;
+      showCropper.value = true;
     };
     reader.readAsDataURL(file);
   }
-  event.target.value = ''; // Reset input ให้เลือกรูปเดิมซ้ำได้
+  event.target.value = "";
 };
 
 // ✅ ฟังก์ชันยืนยันการตัดรูป
 const cropImage = () => {
-  // สั่งให้ Cropper แปลงรูปเป็น Blob (ไฟล์ภาพ)
   if (cropper.value) {
     cropper.value.getCroppedCanvas().toBlob((blob) => {
-      croppedBlob.value = blob; // เก็บไฟล์ที่ตัดแล้วไว้เตรียมส่ง
-      showCropper.value = false; // ปิด Modal
+      croppedBlob.value = blob;
+      showCropper.value = false;
     });
   }
 };
 
 const updateProfile = async () => {
   if (!form.value.fullname) {
-    return Swal.fire('แจ้งเตือน', 'กรุณากรอกชื่อ-นามสกุล', 'warning');
+    return Swal.fire("แจ้งเตือน", "กรุณากรอกชื่อ-นามสกุล", "warning");
   }
 
   isLoading.value = true;
   try {
     const formData = new FormData();
-    formData.append('fullname', form.value.fullname);
-    formData.append('phone', form.value.phone || '');
-    
+    formData.append("fullname", form.value.fullname);
+    formData.append("phone", form.value.phone || "");
+
     // ✅ ส่งไฟล์ที่ Crop แล้ว (ถ้ามี)
     if (croppedBlob.value) {
-      formData.append('image', croppedBlob.value, 'profile.jpg');
+      formData.append("image", croppedBlob.value, "profile.jpg");
     }
 
-    const token = localStorage.getItem('token');
-    
-    // ✅ ใช้ API_URL แทน localhost
+    const token = localStorage.getItem("token");
+
+    // ✅ ใช้ API_URL จาก .env
     const res = await axios.put(`${API_URL}/users/${form.value.id}`, formData, {
-      headers: { 
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'multipart/form-data'
-      }
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "multipart/form-data",
+      },
     });
 
     // อัปเดตข้อมูลใน LocalStorage
-    localStorage.setItem('user', JSON.stringify(res.data.user));
-    
-    // ✅ อัปเดต timestamp เพื่อให้รูปทุกจุดในเว็บเปลี่ยนทันที
+    localStorage.setItem("user", JSON.stringify(res.data.user));
+
+    // ✅ อัปเดต timestamp เพื่อให้รูปเปลี่ยนทันที
     form.value = res.data.user;
     timestamp.value = Date.now();
-    croppedBlob.value = null; // เคลียร์รูปชั่วคราว
+    croppedBlob.value = null;
 
     Swal.fire({
-      icon: 'success',
-      title: 'บันทึกสำเร็จ',
-      text: 'ข้อมูลโปรไฟล์ของคุณถูกอัปเดตแล้ว',
+      icon: "success",
+      title: "บันทึกสำเร็จ",
+      text: "ข้อมูลโปรไฟล์ของคุณถูกอัปเดตแล้ว",
       timer: 1500,
-      showConfirmButton: false
+      showConfirmButton: false,
     });
-
   } catch (error) {
     console.error(error);
-    Swal.fire('Error', 'ไม่สามารถบันทึกข้อมูลได้', 'error');
+    Swal.fire("Error", "ไม่สามารถบันทึกข้อมูลได้", "error");
   } finally {
     isLoading.value = false;
   }
@@ -148,37 +145,56 @@ const updateProfile = async () => {
       <div class="card-body">
         <div class="avatar-upload">
           <div class="avatar-preview">
-            <img 
-              :src="currentImage" 
+            <img
+              :src="currentImage"
               alt="Profile Preview"
-              @error="$event.target.src='https://placehold.co/150x150?text=User'"
-            >
+              @error="$event.target.src = 'https://placehold.co/150x150?text=User'"
+            />
           </div>
           <div class="avatar-edit">
-            <input type='file' id="imageUpload" accept=".png, .jpg, .jpeg" @change="onFileChange" />
-            <label for="imageUpload">
-              ✏️ แก้ไขรูป
-            </label>
+            <input
+              type="file"
+              id="imageUpload"
+              accept=".png, .jpg, .jpeg"
+              @change="onFileChange"
+            />
+            <label for="imageUpload"> ✏️ แก้ไขรูป </label>
           </div>
         </div>
 
         <div class="form-group">
           <label>อีเมล (แก้ไขไม่ได้)</label>
-          <input type="text" v-model="form.email" disabled class="form-control disabled" />
+          <input
+            type="text"
+            v-model="form.email"
+            disabled
+            class="form-control disabled"
+          />
         </div>
 
         <div class="form-group">
           <label>ชื่อ-นามสกุล</label>
-          <input type="text" v-model="form.fullname" class="form-control" placeholder="กรอกชื่อ-นามสกุล" />
+          <input
+            type="text"
+            v-model="form.fullname"
+            class="form-control"
+            placeholder="กรอกชื่อ-นามสกุล"
+          />
         </div>
 
         <div class="form-group">
           <label>เบอร์โทรศัพท์</label>
-          <input type="text" v-model="form.phone" class="form-control" placeholder="กรอกเบอร์โทรศัพท์" maxlength="10" />
+          <input
+            type="text"
+            v-model="form.phone"
+            class="form-control"
+            placeholder="กรอกเบอร์โทรศัพท์"
+            maxlength="10"
+          />
         </div>
 
         <button class="btn-save" @click="updateProfile" :disabled="isLoading">
-          {{ isLoading ? 'กำลังบันทึก...' : 'บันทึกการเปลี่ยนแปลง' }}
+          {{ isLoading ? "กำลังบันทึก..." : "บันทึกการเปลี่ยนแปลง" }}
         </button>
       </div>
     </div>
@@ -191,7 +207,7 @@ const updateProfile = async () => {
             ref="cropper"
             :src="tempImage"
             alt="Source Image"
-            :aspect-ratio="1" 
+            :aspect-ratio="1"
             :view-mode="1"
             drag-mode="move"
             :background="false"
@@ -204,20 +220,20 @@ const updateProfile = async () => {
         </div>
       </div>
     </div>
-
   </div>
 </template>
 
 <style scoped>
+/* Style เดิมของคุณ */
 .profile-container {
   display: flex;
   justify-content: center;
   align-items: center;
   min-height: 100vh;
-  background-image: url('/background.png');
+  background-image: url("/background.png");
   background-size: cover;
   background-position: center;
-  font-family: 'Kanit', sans-serif;
+  font-family: "Kanit", sans-serif;
   padding: 20px;
 }
 
@@ -226,7 +242,7 @@ const updateProfile = async () => {
   width: 100%;
   max-width: 500px;
   border-radius: 20px;
-  box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
   overflow: hidden;
 }
 
@@ -239,13 +255,22 @@ const updateProfile = async () => {
   align-items: center;
 }
 
-.card-header h2 { margin: 0; font-size: 1.5rem; }
-
-.close-btn {
-  background: none; border: none; color: white; font-size: 1.5rem; cursor: pointer;
+.card-header h2 {
+  margin: 0;
+  font-size: 1.5rem;
 }
 
-.card-body { padding: 30px; }
+.close-btn {
+  background: none;
+  border: none;
+  color: white;
+  font-size: 1.5rem;
+  cursor: pointer;
+}
+
+.card-body {
+  padding: 30px;
+}
 
 /* Avatar Upload Style */
 .avatar-upload {
@@ -259,7 +284,7 @@ const updateProfile = async () => {
   height: 150px;
   border-radius: 50%;
   border: 4px solid #2e5936;
-  box-shadow: 0px 2px 4px 0px rgba(0,0,0,0.1);
+  box-shadow: 0px 2px 4px 0px rgba(0, 0, 0, 0.1);
   overflow: hidden;
   background: #f0f0f0;
 }
@@ -276,7 +301,9 @@ const updateProfile = async () => {
   bottom: 0;
 }
 
-.avatar-edit input { display: none; }
+.avatar-edit input {
+  display: none;
+}
 
 .avatar-edit label {
   display: inline-block;
@@ -285,30 +312,60 @@ const updateProfile = async () => {
   background: #e67e22;
   color: white;
   border: 2px solid white;
-  box-shadow: 0px 2px 4px 0px rgba(0,0,0,0.12);
+  box-shadow: 0px 2px 4px 0px rgba(0, 0, 0, 0.12);
   cursor: pointer;
   font-size: 0.9rem;
-  transition: all .2s;
+  transition: all 0.2s;
 }
 
-.avatar-edit label:hover { background: #d35400; }
+.avatar-edit label:hover {
+  background: #d35400;
+}
 
 /* Form Styles */
-.form-group { margin-bottom: 20px; }
-.form-group label { display: block; font-weight: bold; margin-bottom: 8px; color: #555; }
+.form-group {
+  margin-bottom: 20px;
+}
+.form-group label {
+  display: block;
+  font-weight: bold;
+  margin-bottom: 8px;
+  color: #555;
+}
 .form-control {
-  width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 10px; font-family: 'Kanit';
+  width: 100%;
+  padding: 12px;
+  border: 1px solid #ddd;
+  border-radius: 10px;
+  font-family: "Kanit";
   box-sizing: border-box; /* สำคัญ: ป้องกัน input ล้นกรอบ */
 }
-.form-control.disabled { background-color: #f0f0f0; color: #888; cursor: not-allowed; }
+.form-control.disabled {
+  background-color: #f0f0f0;
+  color: #888;
+  cursor: not-allowed;
+}
 
 .btn-save {
-  width: 100%; padding: 12px; border: none; border-radius: 50px;
-  background-color: #2e5936; color: white; font-size: 1.1rem; font-weight: bold;
-  cursor: pointer; transition: 0.3s; margin-top: 10px;
+  width: 100%;
+  padding: 12px;
+  border: none;
+  border-radius: 50px;
+  background-color: #2e5936;
+  color: white;
+  font-size: 1.1rem;
+  font-weight: bold;
+  cursor: pointer;
+  transition: 0.3s;
+  margin-top: 10px;
 }
-.btn-save:hover { background-color: #1b3820; }
-.btn-save:disabled { background-color: #ccc; cursor: not-allowed; }
+.btn-save:hover {
+  background-color: #1b3820;
+}
+.btn-save:disabled {
+  background-color: #ccc;
+  cursor: not-allowed;
+}
 
 /* CSS สำหรับ Cropper Modal */
 .cropper-modal {
@@ -353,7 +410,7 @@ const updateProfile = async () => {
   border: none;
   border-radius: 5px;
   cursor: pointer;
-  font-family: 'Kanit';
+  font-family: "Kanit";
 }
 
 .btn-confirm {
@@ -363,6 +420,15 @@ const updateProfile = async () => {
   border: none;
   border-radius: 5px;
   cursor: pointer;
-  font-family: 'Kanit';
+  font-family: "Kanit";
+}
+::v-deep .cropper-modal {
+  background-color: #000 !important;
+  opacity: 0.9 !important; /* ยิ่งเลขเยอะ ยิ่งมืด (สูงสุด 1.0) */
+}
+
+/* (แถม) ทำให้เส้นกรอบที่เลือกดูชัดขึ้น */
+::v-deep .cropper-view-box {
+  outline: 2px solid white !important;
 }
 </style>

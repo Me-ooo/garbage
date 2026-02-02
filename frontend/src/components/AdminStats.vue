@@ -55,11 +55,12 @@
 <script setup>
 import { ref, watch, onMounted } from "vue";
 
+// รับค่าจาก SystemOverview (Parent Component)
 const props = defineProps({
   totalUsers: { type: Number, default: 0 },
   totalReports: { type: Number, default: 0 },
   pendingReports: { type: Number, default: 0 },
-  inProgressReports: { type: Number, default: 0 }, // เพิ่มใหม่
+  inProgressReports: { type: Number, default: 0 },
   resolvedReports: { type: Number, default: 0 },
 });
 
@@ -67,10 +68,10 @@ const props = defineProps({
 const displayedUsers = ref(0);
 const displayedReports = ref(0);
 const displayedPending = ref(0);
-const displayedInProgress = ref(0); // เพิ่มใหม่
+const displayedInProgress = ref(0);
 const displayedResolved = ref(0);
 
-// ฟังก์ชัน Count Up Animation ที่สมูทขึ้น
+// ฟังก์ชัน Count Up Animation
 const animateValue = (targetRef, end, duration = 1000) => {
   const start = targetRef.value;
   if (start === end) return;
@@ -87,30 +88,15 @@ const animateValue = (targetRef, end, duration = 1000) => {
   window.requestAnimationFrame(step);
 };
 
-// Watch ทุกตัวเพื่อทำ Animation เมื่อข้อมูลจาก API (TiDB) เปลี่ยน
-watch(
-  () => props.totalUsers,
-  (val) => animateValue(displayedUsers, val)
-);
-watch(
-  () => props.totalReports,
-  (val) => animateValue(displayedReports, val)
-);
-watch(
-  () => props.pendingReports,
-  (val) => animateValue(displayedPending, val)
-);
-watch(
-  () => props.inProgressReports,
-  (val) => animateValue(displayedInProgress, val)
-);
-watch(
-  () => props.resolvedReports,
-  (val) => animateValue(displayedResolved, val)
-);
+// Watch ค่าต่างๆ เมื่อมีการเปลี่ยนแปลงให้เล่น Animation
+watch(() => props.totalUsers, (val) => animateValue(displayedUsers, val));
+watch(() => props.totalReports, (val) => animateValue(displayedReports, val));
+watch(() => props.pendingReports, (val) => animateValue(displayedPending, val));
+watch(() => props.inProgressReports, (val) => animateValue(displayedInProgress, val));
+watch(() => props.resolvedReports, (val) => animateValue(displayedResolved, val));
 
 onMounted(() => {
-  // เริ่มรัน Animation ทันทีที่เข้าหน้า
+  // เริ่ม Animation ตอนโหลดหน้าเว็บ
   animateValue(displayedUsers, props.totalUsers);
   animateValue(displayedReports, props.totalReports);
   animateValue(displayedPending, props.pendingReports);
@@ -120,9 +106,9 @@ onMounted(() => {
 </script>
 
 <style scoped>
+/* สไตล์เดิมของคุณ ไม่มีการแก้ไขครับ */
 .stats-grid {
   display: grid;
-  /* ปรับให้รองรับ 5 Card */
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   gap: 15px;
   margin-bottom: 25px;
@@ -169,33 +155,26 @@ onMounted(() => {
   font-weight: 500;
 }
 
-/* --- Theme Colors (ปรับให้เข้ากับระบบจัดการขยะ) --- */
-
-/* ผู้ใช้งาน - สีเขียว Admin */
 .users-card .stat-icon-wrapper {
   background-color: #e8f5e9;
   color: #2e7d32;
 }
 
-/* ทั้งหมด - สีฟ้า */
 .reports-card .stat-icon-wrapper {
   background-color: #e3f2fd;
   color: #1976d2;
 }
 
-/* รอดำเนินการ - สีส้ม */
 .pending-card .stat-icon-wrapper {
   background-color: #fff3e0;
   color: #ef6c00;
 }
 
-/* กำลังแก้ไข - สีฟ้า Cyan */
 .progress-card .stat-icon-wrapper {
   background-color: #e0f7fa;
   color: #00838f;
 }
 
-/* เสร็จสิ้น - สีเขียวมรกต */
 .resolved-card .stat-icon-wrapper {
   background-color: #f1f8e9;
   color: #388e3c;

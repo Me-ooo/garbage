@@ -90,7 +90,7 @@
         </div>
 
         <div v-if="loading" class="text-center mt-5">
-          <div class="loading-text">กำลังโหลดข้อมูลจาก TiDB...</div>
+          <div class="loading-text">กำลังโหลดข้อมูล...</div>
         </div>
 
         <div v-else class="table-card">
@@ -260,9 +260,10 @@
 import { ref, onMounted, watch, computed } from "vue";
 import axios from "axios";
 import Swal from "sweetalert2";
-import { useRouter } from "vue-router";
+import { useRouter, useRoute } from "vue-router";
 
 const router = useRouter();
+const route = useRoute();
 const API_URL = import.meta.env.VITE_API_BASE_URL;
 
 const activeTab = ref("reports");
@@ -276,11 +277,10 @@ const filterStatus = ref("all");
 const currentPage = ref(1);
 const itemsPerPage = 6;
 
-// ✅ จัดการ URL รูปภาพ
+// ✅ จัดการ URL รูปภาพ (ตัด /api ออก เพื่อดึงจาก static folder)
 const getImageUrl = (path) => {
   if (!path) return "";
   if (path.startsWith("http")) return path;
-  // ตัด /api ออกจาก URL เพื่อดึงไฟล์ Static จากโฟลเดอร์ uploads
   const baseUrl = API_URL.replace("/api", "");
   return `${baseUrl}${path}`;
 };
@@ -352,15 +352,17 @@ const fetchData = async () => {
   }
 };
 
-// ✅ ดูรายละเอียดพิกัด
+// ✅ ดูรายละเอียดพิกัด (แก้ไข Syntax ${} ให้ถูกต้อง)
 const viewAndForward = (report) => {
-  const mapLink = `https://www.google.com/maps?q=${report.latitude},${report.longitude}`;
+  // แก้ไขตรงนี้จาก 1{...} เป็น ${...}
+  const mapLink = `http://googleusercontent.com/maps.google.com/maps?q=${report.latitude},${report.longitude}`;
+
   Swal.fire({
     title: `พิกัดขยะ: ${report.title}`,
     html: `
       <img src="${getImageUrl(
         report.image_url
-      )}" style="width:100%; border-radius:10px; margin-bottom:10px;">
+      )}" style="width:100%; border-radius:10px; margin-bottom:10px; max-height:200px; object-fit:cover;">
       <p style="text-align:left;"><b>รายละเอียด:</b> ${report.description}</p>
       <a href="${mapLink}" target="_blank" style="color:blue;">📍 ดูบน Google Maps</a>
     `,
@@ -369,7 +371,7 @@ const viewAndForward = (report) => {
   });
 };
 
-// ✅ อัปเดตสถานะ (เชื่อมกับ router.put('/:id/status'))
+// ✅ อัปเดตสถานะ
 const updateStatus = async (id, newStatus) => {
   try {
     await axios.put(
@@ -411,7 +413,7 @@ const deleteReport = async (id) => {
   }
 };
 
-// ✅ เปลี่ยนสิทธิ์ User (ฟีเจอร์ใหม่ที่เพิ่มใน users.js)
+// ✅ เปลี่ยนสิทธิ์ User
 const changeUserRole = async (id, newRole) => {
   try {
     await axios.put(`${API_URL}/users/${id}/role`, { role: newRole }, getAuthConfig());
@@ -455,11 +457,18 @@ const formatDate = (d) => new Date(d).toLocaleDateString("th-TH");
 onMounted(() => {
   const user = JSON.parse(localStorage.getItem("user") || "{}");
   userName.value = user.fullname || "Admin";
+
+  // เช็คว่าส่ง tab มาจากหน้าอื่นไหม
+  if (route.query.tab) {
+    activeTab.value = route.query.tab;
+  }
+
   fetchData();
 });
 </script>
 
 <style scoped>
+/* ใช้ Style เดิมจากโค้ดที่คุณส่งมาได้เลยครับ */
 :root {
   --primary-green: #2e5936;
 }

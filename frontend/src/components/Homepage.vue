@@ -175,28 +175,25 @@ const menuItems = [
   { id: "report", label: "แจ้งปัญหา" },
 ];
 
-// ✅ Logic คำนวณเลขหน้า (1 ... 4 5 6 ... 44)
+// Logic คำนวณเลขหน้า
 const displayedPages = computed(() => {
   const total = totalPages.value;
   const current = currentPage.value;
-  const delta = 1; // จำนวนหน้าที่จะโชว์รอบๆ หน้าปัจจุบัน
+  const delta = 1; 
   const range = [];
   const rangeWithDots = [];
 
-  // ถ้าหน้าไม่เยอะ ให้โชว์หมดเลย
   if (total <= 7) {
     for (let i = 1; i <= total; i++) range.push(i);
     return range;
   }
 
-  // คำนวณช่วงหน้าที่จะแสดง
   for (let i = 1; i <= total; i++) {
     if (i === 1 || i === total || (i >= current - delta && i <= current + delta)) {
       range.push(i);
     }
   }
 
-  // ใส่ ... ตรงช่องว่าง
   let l;
   for (let i of range) {
     if (l) {
@@ -213,6 +210,7 @@ const displayedPages = computed(() => {
 const getImageUrl = (path) => {
   if (!path) return "/no-image.png";
   if (path.startsWith("http")) return path;
+  // ตัด /api ออก เพื่อให้เหลือ http://localhost:3000 แล้วต่อด้วย /uploads/...
   const baseUrl = API_URL.replace("/api", "");
   return `${baseUrl}${path}`;
 };
@@ -242,10 +240,9 @@ const fetchReports = async (page = 1) => {
       headers: { Authorization: `Bearer ${token}` }
     });
 
-    console.log("ข้อมูลที่ได้รับจาก Backend:", response.data); // 👈 เพิ่มบรรทัดนี้
-
     let allReports = response.data;
 
+    // Filter Client-side
     if (selectedCategory.value !== "all") {
       allReports = allReports.filter((r) => r.status === selectedCategory.value);
     }
@@ -276,7 +273,9 @@ const fetchReports = async (page = 1) => {
 };
 
 const viewReportDetails = (report) => {
-  const mapLink = `https://www.google.com/maps/search/?api=1&query=${report.latitude},${report.longitude}`;
+  // ✅ แก้ไข: ใช้ `${}` ให้ถูกต้อง และใช้ URL ของ Google Maps แบบมาตรฐาน
+  const mapLink = `https://www.google.com/maps?q=${report.latitude},${report.longitude}`;
+  
   Swal.fire({
     title: `<h3 style="color:#333; margin-bottom:5px;">${report.title}</h3>`,
     html: `

@@ -5,26 +5,29 @@ const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 require('dotenv').config(); // โหลดค่า Config จากไฟล์ .env
 
-// ✅ ดึง Secret Key จาก .env (ถ้าลืมใส่ จะใช้ค่าสำรองเพื่อให้รันผ่าน)
+// ✅ 1. ตั้งค่า Secret Key (ใช้ Logic เดียวกับ Middleware เป๊ะๆ)
 const secretKey = process.env.JWT_SECRET || 'default_secret_key_for_dev';
 
+// 🛑 Debug: ปริ้นท์ค่า Key ออกมาดูว่าตรงกับ Middleware ไหม (ลบออกได้เมื่อใช้งานจริง)
+console.log('🔑 Auth Route using Secret Key:', secretKey);
+
 // ==========================================
-// ✅ 1. Register (สมัครสมาชิก)
+// ✅ 2. Register (สมัครสมาชิก)
 // ==========================================
 router.post('/', async (req, res) => {
     try {
         const { fullname, phone, email, password } = req.body;
 
-        // 1. เช็คว่ามีอีเมลนี้หรือยัง
+        // เช็คว่ามีอีเมลนี้หรือยัง
         const [rows] = await db.query('SELECT * FROM users WHERE email = ?', [email]);
         if (rows.length > 0) {
             return res.status(400).json({ message: 'อีเมลนี้ถูกใช้งานแล้ว' });
         }
 
-        // 2. เข้ารหัสรหัสผ่าน (Hash)
+        // เข้ารหัสรหัสผ่าน
         const hashedPassword = await bcrypt.hash(password, 10);
 
-        // 3. เพิ่ม User ใหม่
+        // เพิ่ม User ใหม่ (Default Role = user)
         const sql = 'INSERT INTO users (fullname, phone, email, password, role) VALUES (?, ?, ?, ?, "user")';
         await db.query(sql, [fullname, phone, email, hashedPassword]);
 
@@ -37,13 +40,13 @@ router.post('/', async (req, res) => {
 });
 
 // ==========================================
-// ✅ 2. Login (เข้าสู่ระบบ)
+// ✅ 3. Login (เข้าสู่ระบบ)
 // ==========================================
 router.post('/login', async (req, res) => {
     try {
         const { email, password } = req.body;
 
-        // 1. ค้นหา User
+        // ค้นหา User
         const [users] = await db.query('SELECT * FROM users WHERE email = ?', [email]);
         
         if (users.length === 0) {
@@ -52,23 +55,24 @@ router.post('/login', async (req, res) => {
 
         const user = users[0];
 
-        // 2. ตรวจสอบรหัสผ่าน (รองรับทั้งแบบ Hash และแบบ Social Login)
+        // ตรวจสอบรหัสผ่าน
         const isMatch = await bcrypt.compare(password, user.password);
         if (!isMatch) {
             return res.status(401).json({ message: 'ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง' });
         }
 
-        // 3. สร้าง Token (Payload)
+        // สร้าง Token
         const token = jwt.sign(
             { 
                 id: user.id, 
                 email: user.email, 
-                role: user.role // 👈 สิทธิ์ admin จะถูกฝังไว้ในนี้
+                role: user.role // 👈 สำคัญ! สิทธิ์ admin ต้องอยู่ในนี้
             }, 
             secretKey, 
-            { expiresIn: '2h' } // ตั้งเวลาหมดอายุ 2 ชั่วโมง
+            { expiresIn: '2h' }
         );
 
+        console.log(`✅ User ${user.email} logged in successfully.`);
         res.json({ message: 'เข้าสู่ระบบสำเร็จ', token, user });
 
     } catch (err) {
@@ -78,7 +82,7 @@ router.post('/login', async (req, res) => {
 });
 
 // ==========================================
-// ✅ 3. Login Google/Facebook (Mock / Simple)
+// ✅ 4. Login Google/Facebook (Mock / Simple)
 // ==========================================
 router.post('/google-login-simple', async (req, res) => {
     try {
@@ -88,7 +92,7 @@ router.post('/google-login-simple', async (req, res) => {
         const [users] = await db.query('SELECT * FROM users WHERE email = ?', [email]);
 
         if (users.length > 0) {
-            // กรณีมีบัญชีอยู่แล้ว -> Login เลย
+            // Login
             const user = users[0];
             const token = jwt.sign(
                 { id: user.id, email: user.email, role: user.role }, 
@@ -97,8 +101,7 @@ router.post('/google-login-simple', async (req, res) => {
             );
             res.json({ message: 'Mock Login OK', token, user });
         } else {
-            // กรณีไม่มีบัญชี -> สมัครให้อัตโนมัติ
-            // รหัสผ่านจะเป็นคำว่า "SOCIAL_LOGIN" (User ไม่รู้รหัสนี้ แต่เข้าระบบได้ผ่าน Google)
+            // Register อัตโนมัติ
             const hashedPassword = await bcrypt.hash("SOCIAL_LOGIN", 10);
             
             const sqlInsert = 'INSERT INTO users (fullname, email, role, password) VALUES (?, ?, ?, ?)';
