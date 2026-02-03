@@ -2,12 +2,12 @@ version: "2"
 authtoken: "399SQKUbl3tJY4ezNVvfTM3k49E_w3bUGGg6T9MccyXaejNz"
 
 tunnels:
-  # ✅ หลังบ้าน (3000): ปล่อยโล่ง ให้สุ่มชื่อ
-  my-backend:
+  backend-reset:
     addr: 3000
     proto: http
+    domain: retroussa-intrauterine-garret.ngrok-free.dev # ✅ Backend ล็อกชื่อไว้
 
-  # ✅ หน้าบ้าน (5173): ปล่อยโล่ง ให้สุ่มชื่อ
-  my-frontend:
+  frontend-reset:
     addr: 5173
     proto: http
+    # ❌ ห้ามมีบรรทัด domain ตรงนี้เด็ดขาด!
