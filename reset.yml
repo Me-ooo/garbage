@@ -1,0 +1,13 @@
+version: "2"
+authtoken: "399SQKUbl3tJY4ezNVvfTM3k49E_w3bUGGg6T9MccyXaejNz"
+
+tunnels:
+  # หลังบ้าน (3000)
+  backend-reset:
+    addr: 3000
+    proto: http
+
+  # หน้าบ้าน (5173)
+  frontend-reset:
+    addr: 5173
+    proto: http
