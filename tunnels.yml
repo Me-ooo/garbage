@@ -1,0 +1,14 @@
+version: "3"
+authtoken: "399SQKUbl3tJY4ezNVvfTM3k49E_w3bUGGg6T9MccyXaejNz" 
+
+tunnels:
+  # หลังบ้าน (อันนี้ต้องมี domain: retroussa... ห้ามลบ)
+  backend-api:
+    addr: 3000
+    proto: http
+    domain: retroussa-intrauterine-garret.ngrok-free.dev
+  
+  # หน้าบ้าน (❌ ลบบรรทัด domain ทิ้งไปเลย ให้เหลือแค่นี้)
+  frontend-web:
+    addr: 5173
+    proto: http
