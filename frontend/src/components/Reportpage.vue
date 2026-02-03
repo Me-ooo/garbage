@@ -211,11 +211,18 @@ const formData = ref({
   image: null,
 });
 
+// ✅ ปรับปรุง getImageUrl ให้ปลอดภัยขึ้น
 const getImageUrl = (path) => {
   if (!path) return "/admin-profile.png";
   if (path.startsWith("http")) return path;
+  
+  // ตัด /api ออก เพื่อให้เหลือ Base URL ของ Server
   const baseUrl = API_URL.replace("/api", "");
-  return `${baseUrl}${path}`;
+  
+  // เช็คว่า path มี / นำหน้าหรือไม่ ถ้าไม่มีให้เติม
+  const cleanPath = path.startsWith("/") ? path : `/${path}`;
+  
+  return `${baseUrl}${cleanPath}`;
 };
 
 const userImage = computed(() => {
@@ -321,7 +328,7 @@ const handleSubmit = async () => {
 
   try {
     const data = new FormData();
-    // รวม Category เข้ากับ Title เพื่อให้ดูง่ายใน DB ที่ไม่มี column category
+    // รวม Category เข้ากับ Title เพื่อให้ดูง่ายใน DB
     data.append("title", `[${formData.value.category}] ${formData.value.title}`);
     data.append("description", formData.value.description);
     data.append("latitude", formData.value.latitude);
@@ -337,8 +344,7 @@ const handleSubmit = async () => {
 
     const token = localStorage.getItem("token");
 
-    // ✅ ส่งไปที่ /reports (ไม่ต้องมี /api เพราะ API_URL มีแล้ว หรือถ้าไม่มีก็ใส่เพิ่ม)
-    // เช็ค .env ด้วยว่า VITE_API_BASE_URL=http://localhost:3000/api
+    // ✅ ส่งไปที่ /reports (เช็ค API_URL)
     await axios.post(`${API_URL}/reports`, data, {
       headers: {
         Authorization: `Bearer ${token}`,
@@ -349,7 +355,7 @@ const handleSubmit = async () => {
     successMessage.value = "✓ แจ้งปัญหาเรียบร้อยแล้ว!";
 
     setTimeout(() => {
-      router.push("/"); // กลับหน้าแรก (หรือ /reportpage ถ้าอยากให้อยู่ที่เดิม)
+      router.push("/"); 
     }, 1500);
   } catch (error) {
     console.error(error);

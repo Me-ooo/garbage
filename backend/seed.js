@@ -2,13 +2,12 @@ const mysql = require('mysql2/promise');
 const bcrypt = require('bcryptjs');
 
 // ✅ 1. ตั้งค่า Connection สำหรับ Localhost (XAMPP)
-// ไม่ต้องใช้ .env ก็ได้ถ้าเป็น Localhost เพื่อความง่าย
 const dbConfig = {
     host: 'localhost',
     user: 'root',      // User มาตรฐานของ XAMPP
-    password: '',      // Password มาตรฐานของ XAMPP (ว่างไว้)
-    database: 'garbage_db', // ตรวจสอบชื่อ DB ให้ถูกต้อง
-    port: 3306         // Port มาตรฐานของ MySQL
+    password: '',      // Password มาตรฐานของ XAMPP
+    database: 'garbage_db', 
+    port: 3306         
 };
 
 const seed = async () => {
@@ -21,7 +20,7 @@ const seed = async () => {
         // 1. สร้าง Admin (ถ้ายังไม่มี)
         // ==========================================
         const adminEmail = 'admin@gmail.com';
-        const adminPass = '123456'; // รหัสผ่านง่ายๆ สำหรับทดสอบ
+        const adminPass = '123456'; 
         let adminId = null;
 
         const [existingAdmin] = await connection.query('SELECT id FROM users WHERE email = ?', [adminEmail]);
@@ -29,7 +28,6 @@ const seed = async () => {
         if (existingAdmin.length === 0) {
             const hashedPassword = await bcrypt.hash(adminPass, 10);
             
-            // เพิ่ม column 'phone' เพื่อให้ตรงกับโครงสร้างตาราง users
             const [result] = await connection.query(
                 `INSERT INTO users (fullname, email, password, phone, role) VALUES (?, ?, ?, ?, 'admin')`,
                 ['Super Admin', adminEmail, hashedPassword, '0999999999']
@@ -47,13 +45,14 @@ const seed = async () => {
         const [reports] = await connection.query('SELECT * FROM reports');
 
         if (reports.length === 0) {
-            // ✅ ปรับชื่อคอลัมน์ให้ตรงกับ reports.js (ตัด category ออก, เพิ่ม image_url)
-            const sql = `INSERT INTO reports (user_id, title, description, latitude, longitude, contact, status, image_url) VALUES ?`;
+            // ปรับชื่อคอลัมน์ให้ตรงกับโครงสร้างจริง
+            const sql = `INSERT INTO reports (user_id, title, description, latitude, longitude, contact, status, image_url, created_at) VALUES ?`;
             
+            const now = new Date();
             const values = [
-                [adminId, 'ถังขยะล้นหน้าปากซอย 5', 'ส่งกลิ่นเหม็นมาก รบกวนมาเก็บด้วยครับ', 13.805, 100.555, '0812345678', 'pending', null],
-                [adminId, 'ท่อระบายน้ำตัน', 'ฝนตกแล้วน้ำท่วมขัง ระบายไม่ทัน', 13.806, 100.556, '0899999999', 'in_progress', null],
-                [adminId, 'กิ่งไม้หักขวางถนน', 'ต้นไม้ใหญ่ล้มทับทางเดินสัญจรลำบาก', 13.807, 100.557, '0811111111', 'resolved', null]
+                [adminId, '[ถังขยะไม่เพียงพอ] ขยะล้นหน้าปากซอย 5', 'ขยะตกค้างมาหลายวัน ส่งกลิ่นเหม็นมากครับ', 13.805, 100.555, '0812345678', 'pending', null, now],
+                [adminId, '[เจ้าหน้าที่ไม่มาเก็บขยะ] หมู่บ้านสิริกร', 'ปกติเข้าทุกวันจันทร์ แต่สัปดาห์นี้ยังไม่เห็นเลยครับ', 13.806, 100.556, '0899999999', 'in_progress', null, now],
+                [adminId, '[ขยะอันตราย] พบหลอดไฟแตกจำนวนมาก', 'มีคนเอามาทิ้งไว้ข้างกำแพงวัด กลัวเด็กเดินเหยียบครับ', 13.807, 100.557, '0811111111', 'resolved', null, now]
             ];
 
             await connection.query(sql, [values]);

@@ -2,20 +2,21 @@
 import { ref, onMounted } from "vue";
 import { useRouter } from "vue-router";
 import axios from "axios";
+import Swal from "sweetalert2"; // แนะนำให้ใช้ Swal เพื่อความสวยงาม (ถ้าติดตั้งไว้)
 
 const router = useRouter();
 const form = ref({ email: "", password: "" });
 const errorMessage = ref("");
 const isLoading = ref(false);
 
-// ดึงค่าจาก .env (http://localhost:3000/api)
+// ดึงค่า Base URL จาก .env
 const API_URL = import.meta.env.VITE_API_BASE_URL;
 
 // ==========================================
-// ⚙️ ตั้งค่า Facebook App ID (สำหรับ Mock ไม่ต้องใช้จริงก็ได้)
+// ⚙️ ตั้งค่า Facebook App ID (Mock Mode)
 // ==========================================
 const FACEBOOK_APP_ID = "YOUR_FB_APP_ID";
-const USE_REAL_FACEBOOK = false; // ⚠️ ตั้งเป็น false เพื่อใช้ระบบจำลอง (Mock) จะได้ไม่ติดปัญหาบน Localhost
+const USE_REAL_FACEBOOK = false;
 
 onMounted(() => {
   if (USE_REAL_FACEBOOK) {
@@ -54,9 +55,15 @@ const handleLogin = async () => {
   errorMessage.value = "";
 
   try {
-    // ✅ ยิงไปที่ /auth/login
-    const response = await axios.post(`${API_URL}/auth/login`, form.value);
-    if (response.status === 200) processLogin(response.data);
+    // ✅ ยิงไปที่ /auth/login (ต้องมี /auth นำหน้าเสมอตาม server.js)
+    const response = await axios.post(`${API_URL}/auth/login`, {
+      email: form.value.email,
+      password: form.value.password,
+    });
+
+    if (response.status === 200) {
+      processLogin(response.data);
+    }
   } catch (error) {
     handleError(error);
   } finally {
@@ -67,18 +74,40 @@ const handleLogin = async () => {
 // --- 2. Login Google (Mock) ---
 const loginWithGoogle = async () => {
   isLoading.value = true;
+  errorMessage.value = "";
+
+  // จำลอง User
+  const mockUser = {
+    email: `google_${Math.floor(Math.random() * 10000)}@gmail.com`,
+    fullname: "Google User (Mock)",
+    password: "mockpassword", // Backend อาจต้องรองรับการสร้าง User อัตโนมัติ หรือใช้ Mock API
+    provider: "google",
+  };
+
   try {
-    const mockUser = {
-      email: `google_${Math.floor(Math.random() * 10000)}@gmail.com`,
-      name: "Google User (Mock)",
-    };
-    // ✅ แก้ path ให้มี /auth/
-    const res = await axios.post(`${API_URL}/auth/google-login-simple`, mockUser);
-    processLogin(res.data);
+    // กรณีทดสอบ: ถ้า Backend ยังไม่ทำ Route สำหรับ Google ให้ใช้การ "สมัครสมาชิก+ล็อกอิน" แบบจำลอง
+    // หรือถ้ายิงไปที่ /auth/login แล้ว User ไม่มีในระบบอาจจะ Error
+    // ดังนั้นในที่นี้จะจำลองว่า "สำเร็จ" เลยถ้าเป็น Mock Mode บน Frontend
+
+    // ⚠️ ถ้า Backend คุณมี route /auth/google ให้ใช้บรรทัดนี้:
+    // const res = await axios.post(`${API_URL}/auth/google`, mockUser);
+    // processLogin(res.data);
+
+    // ⚠️ แบบ Mock Frontend (เข้าได้เลยไม่ต้องรอ Backend):
+    setTimeout(() => {
+      const mockToken = "mock-jwt-token-google";
+      const mockUserData = {
+        id: 999,
+        email: mockUser.email,
+        fullname: mockUser.fullname,
+        role: "user",
+        image_url: "",
+      };
+      processLogin({ token: mockToken, user: mockUserData });
+    }, 1000);
   } catch (error) {
     console.error("Google Error:", error);
     errorMessage.value = "Google Login Failed";
-  } finally {
     isLoading.value = false;
   }
 };
@@ -86,47 +115,53 @@ const loginWithGoogle = async () => {
 // --- 3. Login Facebook (Mock) ---
 const loginWithFacebook = async () => {
   errorMessage.value = "";
-
   if (!USE_REAL_FACEBOOK) {
     isLoading.value = true;
-    setTimeout(async () => {
-      try {
-        const mockUser = {
-          email: `fb_${Math.floor(Math.random() * 10000)}@facebook.com`,
-          name: "Facebook User (Mock)",
-        };
-        // ✅ แก้ path ให้มี /auth/ และใช้ endpoint เดียวกับ Google ได้เลยสำหรับ Mock
-        const res = await axios.post(`${API_URL}/auth/google-login-simple`, mockUser);
-        processLogin(res.data);
-      } catch (e) {
-        errorMessage.value = "Facebook Login Failed";
-      } finally {
-        isLoading.value = false;
-      }
+    setTimeout(() => {
+      // Mock Frontend Success
+      const mockUser = {
+        id: 888,
+        email: `fb_${Math.floor(Math.random() * 10000)}@facebook.com`,
+        fullname: "Facebook User (Mock)",
+        role: "user",
+        image_url: "",
+      };
+      processLogin({ token: "mock-jwt-token-fb", user: mockUser });
+      isLoading.value = false;
     }, 800);
   } else {
-    // โค้ด Facebook จริง (ข้ามไปก่อนสำหรับ Localhost)
     alert("Facebook Real Mode not configured for Localhost");
   }
 };
 
+// ✅ ฟังก์ชันจัดการหลัง Login สำเร็จ
 const processLogin = (data) => {
+  // 1. บันทึก Token
   localStorage.setItem("token", data.token);
+
+  // 2. บันทึกข้อมูล User (สำคัญมาก สำหรับหน้า Admin/Profile)
   localStorage.setItem("user", JSON.stringify(data.user));
 
+  // 3. ตรวจสอบ Role เพื่อเปลี่ยนหน้า
   if (data.user.role === "admin") {
+    // ถ้าเป็น Admin ไปหน้า Dashboard
     router.push("/system-overview");
   } else {
-    router.push("/"); // หรือ /reportpage
+    // ถ้าเป็น User ธรรมดา ไปหน้าแจ้งปัญหา (หรือหน้า Home)
+    router.push("/"); // เปลี่ยนเป็น /reportpage ถ้าต้องการ
   }
 };
 
 const handleError = (error) => {
+  console.error("Login Error:", error);
   if (error.response) {
-    errorMessage.value =
-      error.response.data.message || "ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง";
+    // Error จาก Backend (เช่น 400, 401, 404)
+    errorMessage.value = error.response.data.message || "อีเมลหรือรหัสผ่านไม่ถูกต้อง";
+  } else if (error.request) {
+    // ยิงไปแล้วไม่ตอบรับ (Backend ล่ม หรือ Network หลุด)
+    errorMessage.value = "ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้";
   } else {
-    errorMessage.value = "เชื่อมต่อเซิร์ฟเวอร์ไม่ได้ (ตรวจสอบ Backend)";
+    errorMessage.value = "เกิดข้อผิดพลาดที่ไม่ทราบสาเหตุ";
   }
 };
 

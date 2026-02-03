@@ -41,7 +41,6 @@
             <i class="bi bi-people-fill"></i> รายชื่อผู้ใช้
           </button>
         </div>
-
       </aside>
 
       <main class="main-content">
@@ -105,7 +104,7 @@
 import { ref, onMounted, computed } from "vue";
 import axios from "axios";
 import { useRouter } from "vue-router";
-// ตรวจสอบ Path ให้ตรงกับที่เก็บไฟล์ (ถ้าอยู่โฟลเดอร์เดียวกันใช้ ./)
+// ✅ ตรวจสอบว่าไฟล์ AdminStats.vue อยู่ในโฟลเดอร์เดียวกัน
 import AdminStats from "./AdminStats.vue";
 
 const router = useRouter();
@@ -116,13 +115,18 @@ const users = ref([]);
 const loading = ref(false);
 const userName = ref("Admin");
 
-// ✅ ฟังก์ชันจัดการ URL รูปภาพ
+// ✅ ฟังก์ชันจัดการ URL รูปภาพ (ปรับปรุงให้ปลอดภัย)
 const getImageUrl = (path) => {
   if (!path) return "";
   if (path.startsWith("http")) return path;
-  // ตัด /api ออก เพื่อชี้ไปที่ static file server
+  
+  // ตัด /api ออก เพื่อชี้ไปที่ Base URL
   const baseUrl = API_URL.replace("/api", "");
-  return `${baseUrl}${path}`;
+  
+  // เช็คว่า path มี / นำหน้าหรือไม่
+  const cleanPath = path.startsWith("/") ? path : `/${path}`;
+  
+  return `${baseUrl}${cleanPath}`;
 };
 
 const userImage = computed(() => {
@@ -151,9 +155,9 @@ const fetchData = async () => {
     const token = localStorage.getItem("token");
     const config = { headers: { Authorization: `Bearer ${token}` } };
 
-    // เรียก API 2 ตัวพร้อมกัน
+    // ✅ เรียก API (ปรับ Endpoint ให้ตรงกับ server.js และ AdminDashboard)
     const [reportsRes, usersRes] = await Promise.all([
-      axios.get(`${API_URL}/admin/reports`, config),
+      axios.get(`${API_URL}/reports`, config), // เปลี่ยนจาก /admin/reports เป็น /reports
       axios.get(`${API_URL}/users`, config),
     ]);
 
@@ -171,11 +175,9 @@ const fetchData = async () => {
 
 // ✅ ส่ง Query Param 'tab' ไปด้วย เพื่อให้ AdminDashboard เปิดถูกหน้า
 const goToAdmin = (tabName) => {
+  // ตรวจสอบ Router ของคุณว่าตั้ง path ไว้ที่ /admin หรือ /reportimage
+  // ในที่นี้สมมติว่าเป็น /admin
   router.push({ path: "/admin", query: { tab: tabName } });
-};
-
-const goToHome = () => {
-  router.push("/");
 };
 
 const logout = () => {

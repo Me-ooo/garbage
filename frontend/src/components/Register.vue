@@ -5,6 +5,7 @@ import { useRouter } from "vue-router";
 import Swal from "sweetalert2"; // ใช้ SweetAlert2 แทน alert
 
 const router = useRouter();
+// ดึง Base URL มาใช้งาน
 const API_URL = import.meta.env.VITE_API_BASE_URL;
 
 // ข้อมูลสำหรับสมัครสมาชิก
@@ -37,8 +38,8 @@ const handleRegister = async () => {
 
   try {
     // 2. ส่งข้อมูลไป Backend
-    // ยิงไปที่ POST /api/auth (ซึ่งใน auth.js คือ router.post('/'))
-    await axios.post(`${API_URL}/auth`, {
+    // 🚩 แก้ไขจุดนี้: เติม /register ต่อท้าย /auth
+    await axios.post(`${API_URL}/auth/register`, {
       fullname: reg.value.fullname,
       phone: reg.value.phone,
       email: reg.value.email,
@@ -57,6 +58,7 @@ const handleRegister = async () => {
     });
   } catch (err) {
     console.error(err);
+    // ดึงข้อความ Error จาก Backend (ถ้ามี)
     const msg = err.response?.data?.message || "เกิดข้อผิดพลาดในการสมัครสมาชิก";
     Swal.fire("เกิดข้อผิดพลาด", msg, "error");
   }

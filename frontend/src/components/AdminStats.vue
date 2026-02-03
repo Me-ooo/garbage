@@ -71,7 +71,7 @@ const displayedPending = ref(0);
 const displayedInProgress = ref(0);
 const displayedResolved = ref(0);
 
-// ฟังก์ชัน Count Up Animation
+// ฟังก์ชัน Count Up Animation (ตัวเลขวิ่ง)
 const animateValue = (targetRef, end, duration = 1000) => {
   const start = targetRef.value;
   if (start === end) return;
@@ -80,23 +80,43 @@ const animateValue = (targetRef, end, duration = 1000) => {
   const step = (timestamp) => {
     if (!startTimestamp) startTimestamp = timestamp;
     const progress = Math.min((timestamp - startTimestamp) / duration, 1);
+
+    // คำนวณค่าปัจจุบันตาม Progress
     targetRef.value = Math.floor(progress * (end - start) + start);
+
     if (progress < 1) {
       window.requestAnimationFrame(step);
+    } else {
+      targetRef.value = end; // จบ Animation ให้ค่าตรงเป๊ะ
     }
   };
   window.requestAnimationFrame(step);
 };
 
-// Watch ค่าต่างๆ เมื่อมีการเปลี่ยนแปลงให้เล่น Animation
-watch(() => props.totalUsers, (val) => animateValue(displayedUsers, val));
-watch(() => props.totalReports, (val) => animateValue(displayedReports, val));
-watch(() => props.pendingReports, (val) => animateValue(displayedPending, val));
-watch(() => props.inProgressReports, (val) => animateValue(displayedInProgress, val));
-watch(() => props.resolvedReports, (val) => animateValue(displayedResolved, val));
+// Watch ค่าต่างๆ เมื่อ Parent ส่งค่าใหม่มา ให้เล่น Animation
+watch(
+  () => props.totalUsers,
+  (val) => animateValue(displayedUsers, val)
+);
+watch(
+  () => props.totalReports,
+  (val) => animateValue(displayedReports, val)
+);
+watch(
+  () => props.pendingReports,
+  (val) => animateValue(displayedPending, val)
+);
+watch(
+  () => props.inProgressReports,
+  (val) => animateValue(displayedInProgress, val)
+);
+watch(
+  () => props.resolvedReports,
+  (val) => animateValue(displayedResolved, val)
+);
 
 onMounted(() => {
-  // เริ่ม Animation ตอนโหลดหน้าเว็บ
+  // เริ่ม Animation ครั้งแรกตอนโหลดหน้าเว็บ
   animateValue(displayedUsers, props.totalUsers);
   animateValue(displayedReports, props.totalReports);
   animateValue(displayedPending, props.pendingReports);

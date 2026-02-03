@@ -179,7 +179,7 @@ const menuItems = [
 const displayedPages = computed(() => {
   const total = totalPages.value;
   const current = currentPage.value;
-  const delta = 1; 
+  const delta = 1;
   const range = [];
   const rangeWithDots = [];
 
@@ -207,12 +207,18 @@ const displayedPages = computed(() => {
   return rangeWithDots;
 });
 
+// ✅ ปรับปรุง getImageUrl ให้ปลอดภัยขึ้น
 const getImageUrl = (path) => {
   if (!path) return "/no-image.png";
   if (path.startsWith("http")) return path;
-  // ตัด /api ออก เพื่อให้เหลือ http://localhost:3000 แล้วต่อด้วย /uploads/...
+
+  // ตัด /api ออก เพื่อให้เหลือ Base URL ของ Server
   const baseUrl = API_URL.replace("/api", "");
-  return `${baseUrl}${path}`;
+
+  // เช็คว่า path มี / นำหน้าหรือไม่ ถ้าไม่มีให้เติม
+  const cleanPath = path.startsWith("/") ? path : `/${path}`;
+
+  return `${baseUrl}${cleanPath}`;
 };
 
 const userImage = computed(() => {
@@ -236,8 +242,8 @@ const fetchReports = async (page = 1) => {
   loading.value = true;
   try {
     const token = localStorage.getItem("token");
-    const response = await axios.get(`${API_URL}/reports`, { 
-      headers: { Authorization: `Bearer ${token}` }
+    const response = await axios.get(`${API_URL}/reports`, {
+      headers: { Authorization: `Bearer ${token}` },
     });
 
     let allReports = response.data;
@@ -273,9 +279,9 @@ const fetchReports = async (page = 1) => {
 };
 
 const viewReportDetails = (report) => {
-  // ✅ แก้ไข: ใช้ `${}` ให้ถูกต้อง และใช้ URL ของ Google Maps แบบมาตรฐาน
+  // ✅ แก้ไข: ใช้ Template Literal `${}` ให้ถูกต้อง และใช้ URL Google Maps มาตรฐาน
   const mapLink = `https://www.google.com/maps?q=${report.latitude},${report.longitude}`;
-  
+
   Swal.fire({
     title: `<h3 style="color:#333; margin-bottom:5px;">${report.title}</h3>`,
     html: `

@@ -3,6 +3,7 @@ import { ref, onMounted, computed } from "vue";
 import axios from "axios";
 import Swal from "sweetalert2";
 import { useRouter } from "vue-router";
+// ตรวจสอบว่าได้ติดตั้ง: npm install vue-cropperjs cropperjs แล้วหรือยัง
 import VueCropper from "vue-cropperjs";
 import "cropperjs/dist/cropper.css";
 
@@ -26,7 +27,7 @@ const form = ref({
   image_url: "",
 });
 
-// ✅ Computed Property: จัดการการแสดงผลรูปภาพ
+// ✅ Computed Property: จัดการการแสดงผลรูปภาพ (ปรับปรุงให้ Robust ขึ้น)
 const currentImage = computed(() => {
   // 1. ถ้ามีการตัดรูปใหม่ ให้โชว์รูปที่ตัดทันที (Preview)
   if (croppedBlob.value) {
@@ -39,9 +40,17 @@ const currentImage = computed(() => {
     if (form.value.image_url.startsWith("http")) {
       return form.value.image_url;
     }
-    // กรณีเป็นรูปที่อัปโหลดเอง -> ต้องตัด /api ออกเพื่อให้ชี้ไปที่ static server
+
+    // กรณีเป็นรูปจาก Server ของเรา
+    // ตัด /api ออกเพื่อให้ชี้ไปที่ Root domain (เช่น localhost:3000)
     const baseUrl = API_URL.replace("/api", "");
-    return `${baseUrl}${form.value.image_url}?t=${timestamp.value}`;
+
+    // เช็คว่า path มี / นำหน้าหรือไม่ ถ้าไม่มีให้เติม
+    const path = form.value.image_url;
+    const cleanPath = path.startsWith("/") ? path : `/${path}`;
+
+    // เติม ?t=... เพื่อบังคับให้โหลดรูปใหม่เสมอ (แก้ปัญหา Cache)
+    return `${baseUrl}${cleanPath}?t=${timestamp.value}`;
   }
 
   // 3. ถ้าไม่มีอะไรเลย ใช้รูป Default
@@ -71,6 +80,7 @@ const onFileChange = (event) => {
     };
     reader.readAsDataURL(file);
   }
+  // Reset input value เพื่อให้เลือกไฟล์เดิมซ้ำได้ถ้าต้องการ
   event.target.value = "";
 };
 
@@ -89,6 +99,11 @@ const updateProfile = async () => {
     return Swal.fire("แจ้งเตือน", "กรุณากรอกชื่อ-นามสกุล", "warning");
   }
 
+  // เช็ค ID ก่อน
+  if (!form.value.id) {
+    return Swal.fire("Error", "ไม่พบข้อมูลผู้ใช้งาน (กรุณา Login ใหม่)", "error");
+  }
+
   isLoading.value = true;
   try {
     const formData = new FormData();
@@ -102,7 +117,7 @@ const updateProfile = async () => {
 
     const token = localStorage.getItem("token");
 
-    // ✅ ใช้ API_URL จาก .env
+    // ✅ ใช้ API_URL จาก .env และยิงไปที่ /users/:id
     const res = await axios.put(`${API_URL}/users/${form.value.id}`, formData, {
       headers: {
         Authorization: `Bearer ${token}`,

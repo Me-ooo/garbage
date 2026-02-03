@@ -131,7 +131,9 @@
                     <img
                       :src="getImageUrl(report.image_url)"
                       class="table-img"
-                      @error="$event.target.src = 'https://placehold.co/50x50?text=No+Img'"
+                      @error="
+                        $event.target.src = 'https://placehold.co/50x50?text=No+Img'
+                      "
                     />
                   </div>
                 </td>
@@ -221,8 +223,8 @@
                 </td>
                 <td class="text-center">
                   <div class="action-buttons">
-                    <button 
-                      v-if="user.role !== 'admin'" 
+                    <button
+                      v-if="user.role !== 'admin'"
                       class="btn-icon view"
                       @click="changeUserRole(user.id, 'admin')"
                       title="ตั้งเป็น Admin"
@@ -271,13 +273,18 @@ const userName = ref("Admin");
 const searchText = ref("");
 const filterStatus = ref("all");
 
-// ✅ ฟังก์ชันจัดการ URL รูปภาพ
+// ✅ ฟังก์ชันจัดการ URL รูปภาพ (ปรับปรุงให้ปลอดภัย)
 const getImageUrl = (path) => {
   if (!path) return "";
   if (path.startsWith("http")) return path;
-  // ตัด /api ออก เพื่อให้ได้ http://localhost:3000/uploads/...
-  const baseUrl = API_URL.replace("/api", ""); 
-  return `${baseUrl}${path}`;
+
+  // ตัด /api ออก
+  const baseUrl = API_URL.replace("/api", "");
+
+  // เช็คว่า path มี / นำหน้าหรือไม่
+  const cleanPath = path.startsWith("/") ? path : `/${path}`;
+
+  return `${baseUrl}${cleanPath}`;
 };
 
 const userImage = computed(() => {
@@ -326,9 +333,9 @@ const fetchData = async () => {
   loading.value = true;
   try {
     const config = getAuthConfig();
-    // ✅ เรียก API Admin Reports และ Users
+    // ✅ เรียก API (ปรับ endpoint ให้ตรงกับ server.js ทั่วไป)
     const [reportsRes, usersRes] = await Promise.all([
-      axios.get(`${API_URL}/admin/reports`, config), // ตรวจสอบ route admin.js ว่าใช้ path นี้
+      axios.get(`${API_URL}/reports`, config), // ใช้ /reports แทน /admin/reports ถ้า Backend ไม่ได้แยก
       axios.get(`${API_URL}/users`, config),
     ]);
     reports.value = reportsRes.data;
@@ -349,8 +356,8 @@ const fetchData = async () => {
 
 // ✅ ดูรายละเอียดและส่งต่อ (แก้ไขลิงก์ Google Maps)
 const viewAndForward = (report) => {
-  // ใช้ Syntax ${} ให้ถูกต้อง
-  const mapLink = `http://googleusercontent.com/maps.google.com/maps?q=${report.latitude},${report.longitude}`;
+  // แก้ไข URL แผนที่ให้ถูกต้อง
+  const mapLink = `https://www.google.com/maps?q=${report.latitude},${report.longitude}`;
 
   Swal.fire({
     title: `<strong>${report.title}</strong>`,
@@ -365,7 +372,9 @@ const viewAndForward = (report) => {
           <p class="mb-1"><strong>👤 ผู้แจ้ง:</strong> ${report.username || "ไม่ระบุ"}</p>
           <p class="mb-1"><strong>📞 เบอร์โทร:</strong> ${report.contact || "-"}</p>
           <p class="mb-1"><strong>📝 รายละเอียด:</strong> ${report.description}</p>
-          <p class="mb-0"><strong>📍 พิกัด:</strong> ${report.latitude}, ${report.longitude}</p>
+          <p class="mb-0"><strong>📍 พิกัด:</strong> ${report.latitude}, ${
+      report.longitude
+    }</p>
         </div>
         <a href="${mapLink}" target="_blank" class="btn-map" style="display:block; text-align:center; background:#4285F4; color:white; padding:10px; border-radius:30px; text-decoration:none; font-weight:bold; margin-bottom:15px;">
           <i class="bi bi-geo-alt-fill"></i> เปิดใน Google Maps
@@ -405,8 +414,9 @@ const viewAndForward = (report) => {
 
 const updateStatus = async (id, newStatus) => {
   try {
+    // ปรับ endpoint ให้ตรงกับ reportRoutes
     await axios.put(
-      `${API_URL}/admin/reports/${id}/status`,
+      `${API_URL}/reports/${id}/status`,
       { status: newStatus },
       getAuthConfig()
     );
@@ -434,7 +444,7 @@ const deleteReport = async (id) => {
       cancelButtonText: "ยกเลิก",
     }).then((r) => r.isConfirmed)
   ) {
-    await axios.delete(`${API_URL}/admin/reports/${id}`, getAuthConfig());
+    await axios.delete(`${API_URL}/reports/${id}`, getAuthConfig());
     fetchData();
     Swal.fire("ลบสำเร็จ", "", "success");
   }
@@ -458,7 +468,7 @@ const deleteUser = async (id) => {
   }
 };
 
-// ✅ เพิ่มฟังก์ชันเปลี่ยนสิทธิ์ (สำหรับปุ่มโล่ที่เพิ่มมา)
+// ✅ เพิ่มฟังก์ชันเปลี่ยนสิทธิ์
 const changeUserRole = async (id, role) => {
   try {
     await axios.put(`${API_URL}/users/${id}/role`, { role }, getAuthConfig());
@@ -470,11 +480,22 @@ const changeUserRole = async (id, role) => {
 };
 
 const logout = () => {
-  if (confirm("ต้องการออกจากระบบ?")) {
-    localStorage.clear();
-    router.push("/login");
-  }
+  Swal.fire({
+    title: "ยืนยันการออกจากระบบ?",
+    icon: "warning",
+    showCancelButton: true,
+    confirmButtonColor: "#3085d6",
+    cancelButtonColor: "#d33",
+    confirmButtonText: "ใช่, ออกจากระบบ",
+    cancelButtonText: "ยกเลิก",
+  }).then((result) => {
+    if (result.isConfirmed) {
+      localStorage.clear();
+      router.push("/login");
+    }
+  });
 };
+
 const goToHome = () => router.push("/");
 const getStatusClass = (s) =>
   ({
@@ -497,7 +518,7 @@ onMounted(() => {
 </script>
 
 <style scoped>
-/* Style เดิมของคุณ */
+/* Style เดิมของคุณ (ไม่มีการเปลี่ยนแปลง) */
 :root {
   --primary-green: #2e5936;
 }

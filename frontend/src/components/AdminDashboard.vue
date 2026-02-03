@@ -277,12 +277,18 @@ const filterStatus = ref("all");
 const currentPage = ref(1);
 const itemsPerPage = 6;
 
-// ✅ จัดการ URL รูปภาพ (ตัด /api ออก เพื่อดึงจาก static folder)
+// ✅ จัดการ URL รูปภาพ (ปรับปรุงให้รองรับทั้งแบบมี / และไม่มี /)
 const getImageUrl = (path) => {
   if (!path) return "";
   if (path.startsWith("http")) return path;
+  
+  // ลบ /api ออกจาก Base URL เพื่อให้ได้ root domain (เช่น http://localhost:3000 หรือ ngrok)
   const baseUrl = API_URL.replace("/api", "");
-  return `${baseUrl}${path}`;
+  
+  // เช็คว่า path มี / นำหน้าหรือไม่ ถ้าไม่มีให้เติม
+  const cleanPath = path.startsWith("/") ? path : `/${path}`;
+  
+  return `${baseUrl}${cleanPath}`;
 };
 
 const userImage = computed(() => {
@@ -352,9 +358,9 @@ const fetchData = async () => {
   }
 };
 
-// ✅ ดูรายละเอียดพิกัด (แก้ไข Syntax ${} ให้ถูกต้อง)
+// ✅ ดูรายละเอียดพิกัด
 const viewAndForward = (report) => {
-  // แก้ไขตรงนี้จาก 1{...} เป็น ${...}
+  // แก้ไข Syntax ให้ถูกต้อง (${...})
   const mapLink = `http://googleusercontent.com/maps.google.com/maps?q=${report.latitude},${report.longitude}`;
 
   Swal.fire({
