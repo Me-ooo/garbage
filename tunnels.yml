@@ -9,6 +9,6 @@ tunnels:
     domain: retroussa-intrauterine-garret.ngrok-free.dev
 
   # ✅ 2. หน้าบ้าน (Frontend): ห้ามใส่ domain (เพื่อให้สุ่มชื่อใหม่ ไม่ชนกัน)
-  frontend-client:
+  frontend-new:
     addr: 5173
     proto: http
