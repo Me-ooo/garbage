@@ -1,16 +1,16 @@
 const express = require('express');
 const router = express.Router();
-const db = require('../config/db'); // เรียกใช้ Database
+const db = require('../config/db'); 
 const fs = require('fs');
 const path = require('path');
+// 🚩 เพิ่มการตรวจสอบสิทธิ์ (ถ้ามีไฟล์ middleware แยกไว้)
+// const { verifyToken, isAdmin } = require('../middleware/authMiddleware');
 
 // ==========================================
 // ✅ 1. ดึงรายการแจ้งปัญหาทั้งหมด (GET /api/admin/reports)
 // ==========================================
 router.get('/reports', async (req, res) => {
     try {
-        // ใช้ JOIN เพื่อดึงชื่อคนแจ้ง (fullname) จากตาราง users มาแสดงด้วย
-        // เพิ่ม user_id เผื่อต้องใช้ลิงก์ไปหน้าโปรไฟล์
         const sql = `
             SELECT reports.*, users.fullname AS username, users.email 
             FROM reports 
@@ -19,7 +19,14 @@ router.get('/reports', async (req, res) => {
         `;
         
         const [results] = await db.query(sql);
-        res.json(results);
+
+        // 🚩 ปรับ image_url ให้เป็น Full Path เพื่อให้แสดงผลบน ngrok ได้
+        const updatedResults = results.map(report => ({
+            ...report,
+            image_url: report.image_url ? `${req.protocol}://${req.get('host')}${report.image_url}` : null
+        }));
+
+        res.json(updatedResults);
 
     } catch (err) {
         console.error('Admin Fetch Error:', err);

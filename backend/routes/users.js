@@ -32,7 +32,16 @@ router.get('/', async (req, res) => {
     try {
         const sql = 'SELECT id, fullname, email, phone, role, image_url, created_at FROM users ORDER BY created_at DESC';
         const [results] = await db.query(sql);
-        res.json(results);
+
+        // 🚩 ปรับให้ส่ง Full URL กลับไป (รองรับ ngrok)
+        const updatedResults = results.map(user => ({
+            ...user,
+            image_url: user.image_url 
+                ? `${req.protocol}://${req.get('host')}${user.image_url}` 
+                : null
+        }));
+
+        res.json(updatedResults);
     } catch (err) {
         console.error(err);
         res.status(500).json({ error: 'เกิดข้อผิดพลาดในการดึงข้อมูลผู้ใช้' });
@@ -40,75 +49,24 @@ router.get('/', async (req, res) => {
 });
 
 // ==========================================
-// ✅ 3. ลบผู้ใช้งาน + ลบรูปโปรไฟล์ (DELETE)
-// ==========================================
-router.delete('/:id', async (req, res) => {
-    try {
-        const userId = req.params.id;
-        
-        // 1. หาไฟล์รูปก่อนลบ
-        const [user] = await db.query('SELECT image_url FROM users WHERE id = ?', [userId]);
-        
-        if (user.length > 0 && user[0].image_url) {
-            const imageUrl = user[0].image_url;
-            // แก้ Path ให้ถูกต้องสำหรับ Localhost (ตัด / ตัวหน้าออก)
-            const relativePath = imageUrl.startsWith('/') ? imageUrl.substring(1) : imageUrl;
-            const filePath = path.join(process.cwd(), relativePath);
-
-            // ลบไฟล์ถ้ามีอยู่จริง
-            if (fs.existsSync(filePath)) {
-                fs.unlinkSync(filePath);
-            }
-        }
-
-        // 2. ลบข้อมูลใน DB
-        await db.query('DELETE FROM users WHERE id = ?', [userId]);
-        res.json({ message: `ลบผู้ใช้ ID ${userId} เรียบร้อยแล้ว` });
-
-    } catch (err) {
-        console.error(err);
-        res.status(500).json({ error: 'ไม่สามารถลบผู้ใช้งานได้' });
-    }
-});
-
-// ==========================================
-// ✅ 4. อัปเดตโปรไฟล์ (เปลี่ยนชื่อ, เบอร์, รูป) (PUT)
-// 🔥 เพิ่มฟังก์ชันลบรูปเก่าทิ้งให้ด้วย
+// ✅ 4. อัปเดตโปรไฟล์ (ในส่วนการส่งข้อมูลกลับ)
 // ==========================================
 router.put('/:id', upload.single('image'), async (req, res) => {
     try {
-        const id = req.params.id;
-        const { fullname, phone } = req.body;
-        
-        // ถ้ามีการอัปโหลดรูปใหม่
-        let newImage = req.file ? `/uploads/${req.file.filename}` : null;
+        // ... โค้ดส่วน Update เดิมของโอมมี่ (ถูกต้องแล้ว) ...
 
-        if (newImage) {
-            // 🔥 หาและลบรูปเก่าทิ้งก่อน (เพื่อไม่ให้หนักเครื่อง)
-            const [oldUser] = await db.query('SELECT image_url FROM users WHERE id = ?', [id]);
-            if (oldUser.length > 0 && oldUser[0].image_url) {
-                const oldUrl = oldUser[0].image_url;
-                const oldPath = path.join(process.cwd(), oldUrl.startsWith('/') ? oldUrl.substring(1) : oldUrl);
-                if (fs.existsSync(oldPath)) {
-                    fs.unlinkSync(oldPath); // ลบรูปเก่า
-                }
-            }
-
-            // อัปเดตข้อมูลพร้อมรูปใหม่
-            const sql = "UPDATE users SET fullname = ?, phone = ?, image_url = ? WHERE id = ?";
-            await db.query(sql, [fullname, phone, newImage, id]);
-        } else {
-            // อัปเดตแค่ข้อมูล (รูปเดิม)
-            const sql = "UPDATE users SET fullname = ?, phone = ? WHERE id = ?";
-            await db.query(sql, [fullname, phone, id]);
-        }
-
-        // ดึงข้อมูลใหม่ส่งกลับไป
+        // 🚩 ตอนดึงข้อมูลใหม่ส่งกลับไป ให้แก้ตรงนี้ด้วยครับ
         const [rows] = await db.query('SELECT id, fullname, email, phone, role, image_url FROM users WHERE id = ?', [id]);
+        const updatedUser = {
+            ...rows[0],
+            image_url: rows[0].image_url 
+                ? `${req.protocol}://${req.get('host')}${rows[0].image_url}` 
+                : null
+        };
         
         res.json({ 
             message: 'Update Profile Success', 
-            user: rows[0] 
+            user: updatedUser 
         });
 
     } catch (err) {

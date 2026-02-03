@@ -14,10 +14,9 @@ console.log('🔑 Auth Route using Secret Key:', secretKey);
 // ==========================================
 // ✅ 2. Register (สมัครสมาชิก)
 // ==========================================
-router.post('/', async (req, res) => {
+router.post('/register', async (req, res) => { 
     try {
         const { fullname, phone, email, password } = req.body;
-
         // เช็คว่ามีอีเมลนี้หรือยัง
         const [rows] = await db.query('SELECT * FROM users WHERE email = ?', [email]);
         if (rows.length > 0) {

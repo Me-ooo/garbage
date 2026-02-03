@@ -72,7 +72,6 @@ router.post('/', upload.single('image'), async (req, res) => {
 // ==========================================
 router.get('/', async (req, res) => {
     try {
-        // JOIN กับตาราง users เพื่อเอาชื่อคนแจ้งมาแสดง
         const sql = `
             SELECT r.*, u.fullname as username 
             FROM reports r 
@@ -80,7 +79,17 @@ router.get('/', async (req, res) => {
             ORDER BY r.created_at DESC
         `;
         const [results] = await db.query(sql);
-        res.json(results);
+
+        // 🚩 ปรับปรุง: แปลง Path รูปภาพให้เป็น URL เต็มรูปแบบ (Full URL)
+        // เพื่อให้รูปภาพแสดงผลได้ทั้งบนเครื่องเราและเครื่องเพื่อนที่ผ่าน ngrok
+        const updatedResults = results.map(report => ({
+            ...report,
+            image_url: report.image_url 
+                ? `${req.protocol}://${req.get('host')}${report.image_url}` 
+                : null
+        }));
+
+        res.json(updatedResults);
     } catch (err) {
         console.error('Fetch Reports Error:', err);
         res.status(500).json({ error: 'ดึงข้อมูลไม่สำเร็จ' });

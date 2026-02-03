@@ -10,4 +10,4 @@ tunnels:
   frontend-reset:
     addr: 5173
     proto: http
-    # ❌ ห้ามมีบรรทัด domain ตรงนี้เด็ดขาด!
+    
