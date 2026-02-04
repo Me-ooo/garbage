@@ -2,11 +2,12 @@ version: "2"
 authtoken: "399SQKUbl3tJY4ezNVvfTM3k49E_w3bUGGg6T9MccyXaejNz"
 
 tunnels:
-  backend-reset:
+  # เปลี่ยนชื่อจาก backend-reset เป็น back-new
+  back-new:
     addr: 3000
     proto: http
-    
-  frontend-reset:
+
+  # เปลี่ยนชื่อจาก frontend-reset เป็น front-new
+  front-new:
     addr: 5173
     proto: http
-    
