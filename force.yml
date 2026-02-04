@@ -1,0 +1,14 @@
+version: "2"
+authtoken: "399SQKUbl3tJY4ezNVvfTM3k49E_w3bUGGg6T9MccyXaejNz"
+
+tunnels:
+  # หลังบ้าน (Port 3000) - อันนี้ล็อกชื่อเดิมไว้เพื่อให้ตรงกับ .env
+  backend-final:
+    addr: 3000
+    proto: http
+    domain: retroussa-intrauterine-garret.ngrok-free.dev
+
+  # หน้าบ้าน (Port 5173) - อันนี้ห้ามใส่ domain เพื่อให้มันสุ่มชื่อใหม่
+  frontend-final:
+    addr: 5173
+    proto: http

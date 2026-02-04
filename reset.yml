@@ -2,12 +2,12 @@ version: "2"
 authtoken: "399SQKUbl3tJY4ezNVvfTM3k49E_w3bUGGg6T9MccyXaejNz"
 
 tunnels:
-  # เปลี่ยนชื่อจาก backend-reset เป็น back-new
-  back-new:
+  backend-service: # เปลี่ยนชื่อเล่นท่อ
     addr: 3000
     proto: http
+    domain: retroussa-intrauterine-garret.ngrok-free.dev # ล็อกไว้ให้หลังบ้าน
 
-  # เปลี่ยนชื่อจาก frontend-reset เป็น front-new
-  front-new:
+  frontend-service: # เปลี่ยนชื่อเล่นท่อ
     addr: 5173
     proto: http
+    # ❌ ห้ามมี domain: ตรงนี้เด็ดขาด

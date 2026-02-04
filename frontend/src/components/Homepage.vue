@@ -1,156 +1,3 @@
-<template>
-  <div class="homepage-container">
-    <header class="header">
-      <div
-        class="user-profile"
-        @click="$router.push('/profile')"
-        style="cursor: pointer"
-        title="แก้ไขโปรไฟล์"
-      >
-        <img
-          :src="userImage"
-          alt="User Avatar"
-          @error="$event.target.src = 'https://placehold.co/40x40?text=User'"
-        />
-        <span>สวัสดีคุณ {{ userName }}</span>
-      </div>
-      <button class="logout-btn" @click="handleLogout">ออกจากระบบ</button>
-    </header>
-
-    <div class="container">
-      <aside class="sidebar">
-        <div class="banner-box">
-          <img
-            src="/admin-sidebar.png"
-            alt="Campaign Banner"
-            @error="$event.target.src = 'https://placehold.co/250x150'"
-          />
-        </div>
-
-        <div class="nav-menu">
-          <button
-            v-for="menu in menuItems"
-            :key="menu.id"
-            class="menu-btn"
-            @click="handleMenuClick(menu.id)"
-          >
-            {{ menu.label }}
-          </button>
-        </div>
-      </aside>
-
-      <main class="main-content">
-        <div class="banner-top">
-          <img
-            src="/admin-banner.png"
-            alt="Environment Banner"
-            @error="$event.target.src = 'https://placehold.co/800x150'"
-          />
-        </div>
-
-        <div class="search-bar">
-          <input
-            v-model="searchText"
-            type="text"
-            class="search-input"
-            placeholder="ค้นหาปัญหา..."
-            @input="handleFilterChange"
-          />
-          <select
-            v-model="selectedCategory"
-            class="category-select"
-            @change="handleFilterChange"
-          >
-            <option value="all">สถานะ: ทั้งหมด</option>
-            <option value="pending">⏳ รอดำเนินการ</option>
-            <option value="in_progress">🔧 กำลังแก้ไข</option>
-            <option value="resolved">✅ แก้ไขแล้ว</option>
-          </select>
-        </div>
-
-        <div v-if="loading" class="text-center mt-5">
-          <div class="loading-spinner"></div>
-          <p class="loading-text">กำลังโหลดข้อมูล...</p>
-        </div>
-
-        <div v-else class="report-list">
-          <div v-for="report in reports" :key="report.id" class="report-card">
-            <img
-              :src="getImageUrl(report.image_url)"
-              :alt="report.title"
-              class="report-img"
-              @click="viewReportDetails(report)"
-              style="cursor: pointer"
-              @error="$event.target.src = 'https://placehold.co/100x100?text=No+Image'"
-            />
-
-            <div class="report-info">
-              <div class="report-header">
-                <span class="status-badge" :class="getStatusClass(report.status)">
-                  {{ getStatusLabel(report.status) }}
-                </span>
-
-                <button
-                  class="btn-view"
-                  @click="viewReportDetails(report)"
-                  title="ดูรายละเอียด"
-                >
-                  <i class="bi bi-eye-fill"></i>
-                </button>
-              </div>
-
-              <h3 class="report-title">{{ report.title }}</h3>
-              <p class="report-desc">{{ report.description }}</p>
-              <small class="text-muted">โดย: {{ report.username || "ไม่ระบุ" }}</small>
-            </div>
-
-            <div class="report-meta">
-              <span>{{ formatTime(report.created_at) }}</span>
-              <span>{{ formatDate(report.created_at) }}</span>
-            </div>
-          </div>
-
-          <div v-if="reports.length === 0" class="empty-state">
-            <p>ไม่พบรายการแจ้งปัญหา</p>
-          </div>
-
-          <div class="pagination-container" v-if="totalPages > 1">
-            <button
-              class="page-btn nav-btn"
-              :disabled="currentPage === 1"
-              @click="changePage(currentPage - 1)"
-            >
-              <i class="bi bi-chevron-left"></i>
-            </button>
-
-            <template v-for="(page, index) in displayedPages" :key="index">
-              <button
-                v-if="page !== '...'"
-                class="page-btn number-btn"
-                :class="{ active: currentPage === page }"
-                @click="changePage(page)"
-              >
-                {{ page }}
-              </button>
-              <span v-else class="dots">...</span>
-            </template>
-
-            <button
-              class="page-btn nav-btn"
-              :disabled="currentPage === totalPages"
-              @click="changePage(currentPage + 1)"
-            >
-              <i class="bi bi-chevron-right"></i>
-            </button>
-          </div>
-        </div>
-
-        <button class="fab" @click="openNewReport" title="แจ้งปัญหาใหม่">+</button>
-      </main>
-    </div>
-  </div>
-</template>
-
 <script setup>
 import { ref, onMounted, computed } from "vue";
 import { useRouter } from "vue-router";
@@ -158,6 +5,8 @@ import axios from "axios";
 import Swal from "sweetalert2";
 
 const router = useRouter();
+
+// ✅ ปรับให้รองรับระบบ Proxy (ถ้า .env เป็น / ตัวแปรนี้จะเป็น /)
 const API_URL = import.meta.env.VITE_API_BASE_URL;
 
 const userName = ref("Guest");
@@ -175,50 +24,20 @@ const menuItems = [
   { id: "report", label: "แจ้งปัญหา" },
 ];
 
-// Logic คำนวณเลขหน้า
-const displayedPages = computed(() => {
-  const total = totalPages.value;
-  const current = currentPage.value;
-  const delta = 1;
-  const range = [];
-  const rangeWithDots = [];
-
-  if (total <= 7) {
-    for (let i = 1; i <= total; i++) range.push(i);
-    return range;
-  }
-
-  for (let i = 1; i <= total; i++) {
-    if (i === 1 || i === total || (i >= current - delta && i <= current + delta)) {
-      range.push(i);
-    }
-  }
-
-  let l;
-  for (let i of range) {
-    if (l) {
-      if (i - l === 2) rangeWithDots.push(l + 1);
-      else if (i - l !== 1) rangeWithDots.push("...");
-    }
-    rangeWithDots.push(i);
-    l = i;
-  }
-
-  return rangeWithDots;
-});
-
-// ✅ ปรับปรุง getImageUrl ให้ปลอดภัยขึ้น
+// ✅ ปรับปรุง getImageUrl ให้ฉลาดและรองรับ Proxy 
 const getImageUrl = (path) => {
   if (!path) return "/no-image.png";
   if (path.startsWith("http")) return path;
 
-  // ตัด /api ออก เพื่อให้เหลือ Base URL ของ Server
-  const baseUrl = API_URL.replace("/api", "");
+  // จัดการ Base URL ให้สะอาด (รองรับทั้ง / และ /api)
+  let cleanBase = API_URL.endsWith('/') ? API_URL.slice(0, -1) : API_URL;
+  
+  // หากใช้ Proxy (/api) เราต้องดึงรูปจาก root server ตรงๆ
+  // เราจะตัด /api ออกเพื่อให้เหลือแค่ domain ของ ngrok
+  cleanBase = cleanBase.replace('/api', '');
 
-  // เช็คว่า path มี / นำหน้าหรือไม่ ถ้าไม่มีให้เติม
   const cleanPath = path.startsWith("/") ? path : `/${path}`;
-
-  return `${baseUrl}${cleanPath}`;
+  return `${cleanBase}${cleanPath}`;
 };
 
 const userImage = computed(() => {
@@ -242,17 +61,19 @@ const fetchReports = async (page = 1) => {
   loading.value = true;
   try {
     const token = localStorage.getItem("token");
-    const response = await axios.get(`${API_URL}/reports`, {
+    // 🚩 ปรับจุดต่อ URL ให้เป็นมาตรฐานเดียวกับ Register
+    const baseUrl = API_URL.endsWith('/') ? API_URL.slice(0, -1) : API_URL;
+    
+    const response = await axios.get(`${baseUrl}/api/reports`, {
       headers: { Authorization: `Bearer ${token}` },
     });
 
     let allReports = response.data;
 
-    // Filter Client-side
+    // Filter Logic ... (เหมือนเดิม)
     if (selectedCategory.value !== "all") {
       allReports = allReports.filter((r) => r.status === selectedCategory.value);
     }
-
     if (searchText.value) {
       const query = searchText.value.toLowerCase();
       allReports = allReports.filter(
@@ -278,8 +99,9 @@ const fetchReports = async (page = 1) => {
   }
 };
 
+// viewReportDetails และฟังก์ชันอื่นๆ คงเดิม...
 const viewReportDetails = (report) => {
-  // ✅ แก้ไข: ใช้ Template Literal `${}` ให้ถูกต้อง และใช้ URL Google Maps มาตรฐาน
+  // แก้ไข Template Literal พิกัดเล็กน้อย
   const mapLink = `https://www.google.com/maps?q=${report.latitude},${report.longitude}`;
 
   Swal.fire({
@@ -287,23 +109,13 @@ const viewReportDetails = (report) => {
     html: `
       <div style="text-align: left; font-size: 0.95rem; color:#555;">
         <div style="margin-bottom: 15px; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 10px rgba(0,0,0,0.1);">
-          <img src="${getImageUrl(
-            report.image_url
-          )}" style="width:100%; max-height:280px; object-fit:cover; display:block;" onerror="this.src='/no-image.png'">
+          <img src="${getImageUrl(report.image_url)}" style="width:100%; max-height:280px; object-fit:cover; display:block;" onerror="this.src='/no-image.png'">
         </div>
         <div style="background-color: #f8f9fa; padding: 15px; border-radius: 10px; margin-bottom: 15px; border: 1px solid #eee;">
-          <p style="margin: 5px 0;"><strong>👤 ผู้แจ้ง:</strong> ${
-            report.username || "ไม่ระบุ"
-          }</p>
-          <p style="margin: 5px 0;"><strong>📞 เบอร์โทร:</strong> ${
-            report.contact || "-"
-          }</p>
-          <p style="margin: 5px 0;"><strong>📝 รายละเอียด:</strong><br>${
-            report.description
-          }</p>
-          <p style="margin: 5px 0;"><strong>📍 พิกัด:</strong> ${
-            report.latitude || "-"
-          }, ${report.longitude || "-"}</p>
+          <p style="margin: 5px 0;"><strong>👤 ผู้แจ้ง:</strong> ${report.username || "ไม่ระบุ"}</p>
+          <p style="margin: 5px 0;"><strong>📞 เบอร์โทร:</strong> ${report.contact || "-"}</p>
+          <p style="margin: 5px 0;"><strong>📝 รายละเอียด:</strong><br>${report.description}</p>
+          <p style="margin: 5px 0;"><strong>📍 พิกัด:</strong> ${report.latitude || "-"}, ${report.longitude || "-"}</p>
         </div>
         <a href="${mapLink}" target="_blank" style="display: flex; align-items: center; justify-content: center; gap: 8px; background-color: #4285F4; color: white; text-decoration: none; padding: 12px; border-radius: 25px; font-weight: bold; box-shadow: 0 4px 6px rgba(66, 133, 244, 0.3); transition: 0.2s;">
           <i class="bi bi-geo-alt-fill"></i> เปิดใน Google Maps
