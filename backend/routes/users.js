@@ -16,7 +16,6 @@ if (!fs.existsSync(uploadDir)) {
 const storage = multer.diskStorage({
     destination: (req, file, cb) => { cb(null, 'uploads/'); },
     filename: (req, file, cb) => {
-        // ตั้งชื่อไฟล์ให้ไม่ซ้ำกัน
         cb(null, 'user-' + Date.now() + path.extname(file.originalname));
     }
 });
@@ -28,7 +27,6 @@ const upload = multer({ storage: storage });
 // ==========================================
 router.get('/', async (req, res) => {
     try {
-        // เลือกเฉพาะข้อมูลที่จำเป็น
         const sql = 'SELECT id, fullname, email, phone, role, image_url, created_at FROM users ORDER BY created_at DESC';
         const [results] = await db.query(sql);
         res.json(results);
@@ -39,20 +37,18 @@ router.get('/', async (req, res) => {
 });
 
 // ==========================================
-// 3. ดึงโปรไฟล์รายบุคคล (สำหรับหน้า Profile)
+// 3. ดึงโปรไฟล์รายบุคคล
 // URL: /api/users/:id
 // ==========================================
 router.get('/:id', async (req, res) => {
     try {
         const { id } = req.params;
-        // ⚠️ ลบ username ออก เพราะใน DB โอมมี่ไม่มีคอลัมน์นี้ (ใช้ fullname แทน)
         const sql = 'SELECT id, fullname, email, phone, role, image_url FROM users WHERE id = ?';
         const [rows] = await db.query(sql, [id]);
 
         if (rows.length === 0) {
             return res.status(404).json({ message: 'ไม่พบผู้ใช้งาน' });
         }
-
         res.json(rows[0]);
     } catch (err) {
         console.error('Fetch User Error:', err);
@@ -86,7 +82,6 @@ router.put('/update/:id', upload.single('image'), async (req, res) => {
 
         await db.query(sql, params);
 
-        // ดึงข้อมูลล่าสุดส่งกลับไปให้หน้าบ้านอัปเดต LocalStorage
         const [rows] = await db.query('SELECT id, fullname, email, phone, role, image_url FROM users WHERE id = ?', [id]);
         
         res.json({ 
@@ -101,13 +96,13 @@ router.put('/update/:id', upload.single('image'), async (req, res) => {
 });
 
 // ==========================================
-// 5. เปลี่ยนสิทธิ์ผู้ใช้ (สำหรับ Admin Dashboard)
+// 5. เปลี่ยนสิทธิ์ผู้ใช้ (สำหรับ Admin)
 // URL: /api/users/:id/role
 // ==========================================
 router.put('/:id/role', async (req, res) => {
     try {
         const { id } = req.params;
-        const { role } = req.body; // รับค่า role ที่ส่งมา (เช่น 'admin' หรือ 'user')
+        const { role } = req.body;
 
         await db.query('UPDATE users SET role = ? WHERE id = ?', [role, id]);
 
@@ -115,6 +110,24 @@ router.put('/:id/role', async (req, res) => {
     } catch (err) {
         console.error('Change Role Error:', err);
         res.status(500).json({ error: 'ไม่สามารถเปลี่ยนสิทธิ์ได้' });
+    }
+});
+
+// ==========================================
+// ✅ 6. ลบผู้ใช้งาน (เพิ่มใหม่!)
+// URL: /api/users/:id
+// ==========================================
+router.delete('/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        // ลบ User ออกจาก Database
+        await db.query('DELETE FROM users WHERE id = ?', [id]);
+
+        res.json({ message: 'ลบผู้ใช้งานเรียบร้อยแล้ว' });
+    } catch (err) {
+        console.error('Delete User Error:', err);
+        res.status(500).json({ error: 'ไม่สามารถลบผู้ใช้งานได้' });
     }
 });
 

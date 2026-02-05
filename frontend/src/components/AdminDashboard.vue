@@ -451,7 +451,6 @@ const deleteReport = async (id) => {
   }
 };
 
-// ✅ ฟังก์ชันใหม่: แสดงรายละเอียดแบบดูง่าย สอาดตา
 const viewReportDetail = (report) => {
   const mapLink = `https://www.google.com/maps/search/?api=1&query=${report.latitude},${report.longitude}`;
 
@@ -502,8 +501,8 @@ const viewReportDetail = (report) => {
         </a>
       </div>
     `,
-    showConfirmButton: false, // ซ่อนปุ่ม OK เดิม เพื่อให้ดูสะอาด
-    showCloseButton: true, // มีปุ่มกากบาทมุมขวาบน
+    showConfirmButton: false, 
+    showCloseButton: true,
     width: "500px",
     padding: "20px",
   });
@@ -533,20 +532,36 @@ const changeUserRole = async (id, role) => {
   }
 };
 
+// ✅ ฟังก์ชันใหม่: เชื่อมต่อ API ลบผู้ใช้จริง
 const deleteUser = async (id) => {
   const result = await Swal.fire({
     title: "ลบผู้ใช้คนนี้?",
+    text: "การกระทำนี้ไม่สามารถย้อนกลับได้",
     icon: "warning",
     showCancelButton: true,
     confirmButtonColor: "#d33",
-    confirmButtonText: "ลบเลย",
+    confirmButtonText: "ยืนยันลบ",
+    cancelButtonText: "ยกเลิก"
   });
+
   if (result.isConfirmed) {
-    Swal.fire(
-      "แจ้งเตือน",
-      "ฟังก์ชันลบผู้ใช้ยังไม่ได้เปิดใช้งาน (เพื่อความปลอดภัย)",
-      "info"
-    );
+    try {
+      const token = localStorage.getItem("token");
+      const baseUrl = API_URL.endsWith("/") ? API_URL.slice(0, -1) : API_URL;
+      
+      // เรียก API ลบผู้ใช้
+      await axios.delete(`${baseUrl}/api/users/${id}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      // อัปเดตรายการในหน้าเว็บโดยไม่ต้องโหลดใหม่
+      users.value = users.value.filter((u) => u.id !== id);
+
+      Swal.fire("ลบสำเร็จ", "ผู้ใช้งานถูกลบออกจากระบบแล้ว", "success");
+    } catch (err) {
+      console.error("Delete User Error:", err);
+      Swal.fire("ผิดพลาด", "ไม่สามารถลบผู้ใช้งานได้", "error");
+    }
   }
 };
 
