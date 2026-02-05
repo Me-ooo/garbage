@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted } from "vue";
+import { ref } from "vue";
 import { useRouter } from "vue-router";
 import axios from "axios";
 import Swal from "sweetalert2";
@@ -9,37 +9,21 @@ const form = ref({ email: "", password: "" });
 const errorMessage = ref("");
 const isLoading = ref(false);
 
-// ✅ ดึงค่า Base URL
-const API_URL = import.meta.env.VITE_API_BASE_URL;
+const API_URL = import.meta.env.VITE_API_BASE_URL || "";
 
-const FACEBOOK_APP_ID = "YOUR_FB_APP_ID";
-const USE_REAL_FACEBOOK = false;
-
-onMounted(() => {
-  if (USE_REAL_FACEBOOK) {
-    initFacebookSDK();
+// ✅ ฟังก์ชันช่วยจัดการ Base URL (เพื่อให้รองรับทั้ง Proxy, Localhost และ Ngrok)
+const getBaseUrl = () => {
+  let url = API_URL;
+  // ถ้าเป็น localhost ให้ตัดทิ้งเพื่อใช้ Proxy ของ Vite (ป้องกัน Mixed Content)
+  if (url.includes("localhost")) {
+    return "";
   }
-});
-
-const initFacebookSDK = () => {
-  if (window.FB) return;
-  window.fbAsyncInit = function () {
-    window.FB.init({
-      appId: FACEBOOK_APP_ID,
-      cookie: true,
-      xfbml: true,
-      version: "v18.0",
-    });
-  };
-  (function (d, s, id) {
-    var js,
-      fjs = d.getElementsByTagName(s)[0];
-    if (d.getElementById(id)) return;
-    js = d.createElement(s);
-    js.id = id;
-    js.src = "https://connect.facebook.net/en_US/sdk.js";
-    fjs.parentNode.insertBefore(js, fjs);
-  })(document, "script", "facebook-jssdk");
+  // ถ้ามี / ปิดท้าย ให้เอาออก
+  if (url.endsWith("/")) {
+    url = url.slice(0, -1);
+  }
+  // ตัด /api ออก (เพราะเราจะเติมเองใน axios)
+  return url.replace("/api", "");
 };
 
 // --- 1. Login ปกติ ---
@@ -52,21 +36,7 @@ const handleLogin = async () => {
   errorMessage.value = "";
 
   try {
-    // 🚩 แก้ไข Logic เพื่อรองรับ Proxy แบบ 100% (กันเหนียว)
-    let baseUrl = API_URL;
-
-    // ถ้า .env หลุดมาเป็น localhost ให้ตัดทิ้ง เพื่อบังคับใช้ Proxy (Relative Path)
-    // จะได้ไม่ติด Mixed Content ตอนใช้ ngrok
-    if (baseUrl.includes("localhost")) {
-      baseUrl = "";
-    } else if (baseUrl.endsWith("/")) {
-      baseUrl = baseUrl.slice(0, -1);
-    }
-
-    // ตัด /api ออกกันพลาด (เพราะเราจะเติมเองบรรทัดล่าง)
-    baseUrl = baseUrl.replace("/api", "");
-
-    // ผลลัพธ์จะเป็น /api/auth/login (วิ่งผ่าน Proxy ใน vite.config.js แน่นอน)
+    const baseUrl = getBaseUrl();
     const response = await axios.post(`${baseUrl}/api/auth/login`, {
       email: form.value.email,
       password: form.value.password,
@@ -82,62 +52,68 @@ const handleLogin = async () => {
   }
 };
 
-// --- 2. Login Google (Mock) ---
+// --- 2. Login Google (เชื่อมต่อ Backend จริง) ---
 const loginWithGoogle = async () => {
   isLoading.value = true;
   errorMessage.value = "";
-  const mockUser = {
-    email: `google_${Math.floor(Math.random() * 10000)}@gmail.com`,
-    fullname: "Google User (Mock)",
-    password: "mockpassword",
-    provider: "google",
-  };
-
+  
   try {
-    setTimeout(() => {
-      const mockToken = "mock-jwt-token-google";
-      const mockUserData = {
-        id: 999,
-        email: mockUser.email,
-        fullname: mockUser.fullname,
-        role: "user",
-        image_url: "",
-      };
-      processLogin({ token: mockToken, user: mockUserData });
-    }, 1000);
+    // สุ่มข้อมูล (แต่ส่งไปสร้าง User จริงใน DB)
+    const randomNum = Math.floor(Math.random() * 10000);
+    const mockPayload = {
+        email: `google_${randomNum}@gmail.com`,
+        name: `Google User ${randomNum}`,
+    };
+
+    const baseUrl = getBaseUrl();
+    // ยิงไปที่ API จริงๆ
+    const response = await axios.post(`${baseUrl}/api/auth/google-login-simple`, mockPayload);
+
+    if (response.data.token) {
+        processLogin(response.data);
+    }
+
   } catch (error) {
-    console.error("Google Error:", error);
-    errorMessage.value = "Google Login Failed";
+    console.error("Google Login Error:", error);
+    errorMessage.value = "เชื่อมต่อ Google Login ไม่สำเร็จ";
+  } finally {
     isLoading.value = false;
   }
 };
 
-// --- 3. Login Facebook (Mock) ---
+// --- 3. Login Facebook (เชื่อมต่อ Backend จริง) ---
 const loginWithFacebook = async () => {
+  isLoading.value = true;
   errorMessage.value = "";
-  if (!USE_REAL_FACEBOOK) {
-    isLoading.value = true;
-    setTimeout(() => {
-      const mockUser = {
-        id: 888,
-        email: `fb_${Math.floor(Math.random() * 10000)}@facebook.com`,
-        fullname: "Facebook User (Mock)",
-        role: "user",
-        image_url: "",
-      };
-      processLogin({ token: "mock-jwt-token-fb", user: mockUser });
-      isLoading.value = false;
-    }, 800);
-  } else {
-    alert("Facebook Real Mode not configured for Localhost");
+
+  try {
+    const randomNum = Math.floor(Math.random() * 10000);
+    const mockPayload = {
+        email: `fb_${randomNum}@facebook.com`,
+        name: `Facebook User ${randomNum}`,
+    };
+
+    const baseUrl = getBaseUrl();
+    // ใช้ API เดียวกัน (เพราะ Logic คือสร้าง User ใหม่ถ้าไม่มี)
+    const response = await axios.post(`${baseUrl}/api/auth/google-login-simple`, mockPayload);
+
+    if (response.data.token) {
+        processLogin(response.data);
+    }
+
+  } catch (error) {
+    console.error("Facebook Login Error:", error);
+    errorMessage.value = "เชื่อมต่อ Facebook Login ไม่สำเร็จ";
+  } finally {
+    isLoading.value = false;
   }
 };
 
+// ฟังก์ชันจัดการหลัง Login สำเร็จ
 const processLogin = (data) => {
   localStorage.setItem("token", data.token);
   localStorage.setItem("user", JSON.stringify(data.user));
 
-  // แจ้งเตือนสวยๆ ก่อนเปลี่ยนหน้า
   Swal.fire({
     icon: "success",
     title: "เข้าสู่ระบบสำเร็จ",
@@ -345,7 +321,7 @@ const goToRegister = () => router.push("/register");
 }
 .btn-facebook {
   width: 100%;
-  background-color: #1877f2; /* สี Facebook จริง */
+  background-color: #1877f2;
   color: white;
   border: none;
   padding: 10px;

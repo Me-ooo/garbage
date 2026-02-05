@@ -45,12 +45,12 @@ const routes = [
     path: '/profile',
     name: 'profile',
     component: Profile,
-    meta: { requiresAuth: true, title: 'โปรไฟล์ของฉัน' }
+    // 🚩 ระบุชัดเจนว่าหน้านี้ไม่ต้องใช้ Admin (requiresAdmin: false)
+    meta: { requiresAuth: true, requiresAdmin: false, title: 'โปรไฟล์ของฉัน' }
   },
 
   // --- Admin Zone (ต้อง Login + Role Admin) ---
   {
-    // 🚩 แก้ไข: เปลี่ยนจาก /admin เป็น /admin-dashboard ให้ตรงกับ SystemOverview
     path: '/admin-dashboard',
     name: 'AdminDashboard',
     component: AdminDashboard, 
@@ -79,34 +79,43 @@ const router = createRouter({
 // 🔒 Navigation Guards (ระบบป้องกันการเข้าถึง)
 // ==========================================
 router.beforeEach((to, from, next) => {
+  // 1. ตั้งชื่อ Title บน Browser Tab
   document.title = to.meta.title ? `${to.meta.title} - Garbage System` : 'Garbage System';
 
   const token = localStorage.getItem('token');
   
-  let user = {};
+  // ✅ 2. ดึง User แบบปลอดภัย (กัน Error เวลาข้อมูลไม่ครบ)
+  let user = null;
   try {
-    user = JSON.parse(localStorage.getItem('user') || '{}');
+    const userStr = localStorage.getItem('user');
+    if (userStr && userStr !== "undefined") {
+        user = JSON.parse(userStr);
+    }
   } catch (e) {
-    user = {};
+    console.error("Error parsing user data:", e);
+    user = null;
   }
 
-  // 2. เช็คว่าหน้านี้ต้องการ Login หรือไม่?
+  const userRole = user ? user.role : null;
+
+  // ✅ 3. เช็ค Login (ถ้าไม่มี Token ดีดไป Login)
   if (to.meta.requiresAuth && !token) {
     return next('/login');
   }
 
-  // 3. เช็คว่าหน้านี้ต้องการ Admin หรือไม่?
-  if (to.meta.requiresAdmin && user.role !== 'admin') {
-    // alert('⛔ ขออภัย! หน้านี้สำหรับผู้ดูแลระบบเท่านั้น'); // เอา alert ออกก็ได้ถ้ารำคาญ
+  // ✅ 4. เช็ค Admin (เฉพาะหน้าที่ระบุ requiresAdmin: true เท่านั้น)
+  if (to.meta.requiresAdmin && userRole !== 'admin') {
+    // ถ้าไม่ใช่ Admin แต่พยายามเข้าหน้า Admin ให้ดีดกลับ Home
     return next('/'); 
   }
 
-  // 4. ถ้า Login อยู่แล้ว แต่อยากกลับไปหน้า Login/Register
+  // ✅ 5. ถ้า Login อยู่แล้ว แต่อยากกลับไปหน้า Login/Register
   if ((to.path === '/login' || to.path === '/register') && token) {
-     if (user.role === 'admin') return next('/system-overview');
+     if (userRole === 'admin') return next('/system-overview');
      return next('/'); 
   }
 
+  // ผ่านทุกเงื่อนไข ไปต่อได้
   next(); 
 });
 
