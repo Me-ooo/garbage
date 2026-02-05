@@ -53,76 +53,74 @@
 </template>
 
 <script setup>
-import { ref, watch, onMounted } from "vue";
+import { ref, onMounted, computed } from "vue";
+import { useRouter } from "vue-router";
+import axios from "axios";
+import Swal from "sweetalert2";
 
-// รับค่าจาก SystemOverview (Parent Component)
+// ✅ 1. รับค่าจากหน้าแม่ (SystemOverview)
 const props = defineProps({
-  totalUsers: { type: Number, default: 0 },
-  totalReports: { type: Number, default: 0 },
-  pendingReports: { type: Number, default: 0 },
-  inProgressReports: { type: Number, default: 0 },
-  resolvedReports: { type: Number, default: 0 },
+  totalUsers: Number,
+  totalReports: Number,
+  pendingReports: Number,
+  inProgressReports: Number,
+  resolvedReports: Number,
 });
 
-// ตัวแปรสำหรับแสดงผล Animation
-const displayedUsers = ref(0);
-const displayedReports = ref(0);
-const displayedPending = ref(0);
-const displayedInProgress = ref(0);
-const displayedResolved = ref(0);
+const router = useRouter();
+const API_URL = import.meta.env.VITE_API_BASE_URL;
 
-// ฟังก์ชัน Count Up Animation (ตัวเลขวิ่ง)
-const animateValue = (targetRef, end, duration = 1000) => {
-  const start = targetRef.value;
-  if (start === end) return;
+const stats = ref({
+  totalReports: 0,
+  pending: 0,
+  inProgress: 0,
+  resolved: 0,
+  totalUsers: 0,
+});
 
-  let startTimestamp = null;
-  const step = (timestamp) => {
-    if (!startTimestamp) startTimestamp = timestamp;
-    const progress = Math.min((timestamp - startTimestamp) / duration, 1);
+const isLoading = ref(true);
 
-    // คำนวณค่าปัจจุบันตาม Progress
-    targetRef.value = Math.floor(progress * (end - start) + start);
+// ✅ 2. คำนวณค่าที่จะแสดง (ถ้ามี Props ให้ใช้ Props ถ้าไม่มีให้ใช้ stats ที่โหลดเอง)
+const displayedUsers = computed(() => props.totalUsers ?? stats.value.totalUsers);
+const displayedReports = computed(() => props.totalReports ?? stats.value.totalReports);
+const displayedPending = computed(() => props.pendingReports ?? stats.value.pending);
+const displayedInProgress = computed(
+  () => props.inProgressReports ?? stats.value.inProgress
+);
+const displayedResolved = computed(() => props.resolvedReports ?? stats.value.resolved);
 
-    if (progress < 1) {
-      window.requestAnimationFrame(step);
-    } else {
-      targetRef.value = end; // จบ Animation ให้ค่าตรงเป๊ะ
-    }
-  };
-  window.requestAnimationFrame(step);
+onMounted(async () => {
+  // เช็คสิทธิ์ Admin
+  const user = JSON.parse(localStorage.getItem("user") || "{}");
+  if (user.role !== "admin") {
+    return;
+  }
+
+  // ถ้าไม่มีค่าส่งมาจาก Props (คือเปิดหน้านี้เดี่ยวๆ) ให้ดึงข้อมูลเอง
+  if (props.totalUsers === undefined) {
+    await fetchStats();
+  } else {
+    isLoading.value = false;
+  }
+});
+
+const fetchStats = async () => {
+  isLoading.value = true;
+  try {
+    const token = localStorage.getItem("token");
+    const baseUrl = API_URL.endsWith("/") ? API_URL.slice(0, -1) : API_URL;
+
+    const response = await axios.get(`${baseUrl}/api/admin/stats`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+
+    stats.value = response.data;
+  } catch (error) {
+    console.error("Fetch Stats Error:", error);
+  } finally {
+    isLoading.value = false;
+  }
 };
-
-// Watch ค่าต่างๆ เมื่อ Parent ส่งค่าใหม่มา ให้เล่น Animation
-watch(
-  () => props.totalUsers,
-  (val) => animateValue(displayedUsers, val)
-);
-watch(
-  () => props.totalReports,
-  (val) => animateValue(displayedReports, val)
-);
-watch(
-  () => props.pendingReports,
-  (val) => animateValue(displayedPending, val)
-);
-watch(
-  () => props.inProgressReports,
-  (val) => animateValue(displayedInProgress, val)
-);
-watch(
-  () => props.resolvedReports,
-  (val) => animateValue(displayedResolved, val)
-);
-
-onMounted(() => {
-  // เริ่ม Animation ครั้งแรกตอนโหลดหน้าเว็บ
-  animateValue(displayedUsers, props.totalUsers);
-  animateValue(displayedReports, props.totalReports);
-  animateValue(displayedPending, props.pendingReports);
-  animateValue(displayedInProgress, props.inProgressReports);
-  animateValue(displayedResolved, props.resolvedReports);
-});
 </script>
 
 <style scoped>

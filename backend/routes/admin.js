@@ -1,94 +1,104 @@
 const express = require('express');
 const router = express.Router();
-const db = require('../config/db'); 
-const fs = require('fs');
-const path = require('path');
-// 🚩 เพิ่มการตรวจสอบสิทธิ์ (ถ้ามีไฟล์ middleware แยกไว้)
-// const { verifyToken, isAdmin } = require('../middleware/authMiddleware');
+const conn = require('../config/db'); 
 
 // ==========================================
-// ✅ 1. ดึงรายการแจ้งปัญหาทั้งหมด (GET /api/admin/reports)
+// 1. API ดึงภาพรวมระบบ (Dashboard Stats)
+// URL: /api/admin/stats
+// ==========================================
+router.get('/stats', async (req, res) => {
+    try {
+        // 1. นับจำนวนสมาชิก
+        const [users] = await conn.query("SELECT COUNT(*) as count FROM users");
+        const totalUsers = users[0].count;
+
+        // 2. นับจำนวนแจ้งปัญหา
+        const [reports] = await conn.query("SELECT COUNT(*) as count FROM reports");
+        const totalReports = reports[0].count;
+
+        // 3. นับแยกสถานะ
+        const [statusCounts] = await conn.query(`
+            SELECT 
+                SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) as pending,
+                SUM(CASE WHEN status = 'in_progress' THEN 1 ELSE 0 END) as inProgress,
+                SUM(CASE WHEN status = 'resolved' THEN 1 ELSE 0 END) as resolved
+            FROM reports
+        `);
+
+        // ส่งข้อมูลกลับ (ใช้ชื่อตัวแปรให้ตรงกับหน้าบ้าน)
+        res.json({
+            totalUsers: totalUsers,
+            totalReports: totalReports,
+            pending: parseInt(statusCounts[0].pending || 0),
+            inProgress: parseInt(statusCounts[0].inProgress || 0),
+            resolved: parseInt(statusCounts[0].resolved || 0)
+        });
+
+    } catch (err) {
+        console.error("❌ Stats Error:", err.message);
+        res.status(500).json({ message: "Server Error", error: err.message });
+    }
+});
+
+// ==========================================
+// 2. API รายการแจ้งปัญหาทั้งหมด
+// URL: /api/admin/reports
 // ==========================================
 router.get('/reports', async (req, res) => {
     try {
+        // 🚩 แก้ไขจุดที่พัง: เปลี่ยน u.username เป็น u.email
+        // เพราะตาราง users ของโอมมี่ไม่มี username ครับ
         const sql = `
-            SELECT reports.*, users.fullname AS username, users.email 
-            FROM reports 
-            LEFT JOIN users ON reports.user_id = users.id 
-            ORDER BY reports.created_at DESC
+            SELECT 
+                r.*, 
+                u.email, 
+                u.fullname 
+            FROM reports r 
+            LEFT JOIN users u ON r.user_id = u.id 
+            ORDER BY r.created_at DESC
         `;
+        const [rows] = await conn.query(sql);
         
-        const [results] = await db.query(sql);
-
-        // 🚩 ปรับ image_url ให้เป็น Full Path เพื่อให้แสดงผลบน ngrok ได้
-        const updatedResults = results.map(report => ({
-            ...report,
-            image_url: report.image_url ? `${req.protocol}://${req.get('host')}${report.image_url}` : null
+        // แปลงข้อมูลนิดหน่อยให้หน้าบ้านใช้ง่าย (Map email ไปใส่ username แทน ถ้าหน้าบ้านเรียกใช้ username)
+        const mappedRows = rows.map(row => ({
+            ...row,
+            username: row.fullname || row.email // ใช้ชื่อจริง หรือ อีเมล แทนชื่อเล่น
         }));
 
-        res.json(updatedResults);
+        res.json(mappedRows);
 
     } catch (err) {
-        console.error('Admin Fetch Error:', err);
-        res.status(500).json({ error: 'Database Error: ' + err.message });
+        console.error("❌ Get Reports Error:", err.message);
+        res.status(500).json({ message: "Database Error", error: err.message });
     }
 });
 
 // ==========================================
-// ✅ 2. อัปเดตสถานะงาน (PUT /api/admin/reports/:id/status)
+// 3. API อัปเดตสถานะ
+// URL: /api/admin/reports/:id/status
 // ==========================================
 router.put('/reports/:id/status', async (req, res) => {
+    const { status } = req.body;
     try {
-        const id = req.params.id;
-        const { status } = req.body; // รับค่า status ใหม่ (pending, in_progress, resolved)
-
-        const sql = "UPDATE reports SET status = ? WHERE id = ?";
-        await db.query(sql, [status, id]);
-
-        res.json({ message: 'อัปเดตสถานะเรียบร้อย' });
-
+        await conn.query("UPDATE reports SET status = ? WHERE id = ?", [status, req.params.id]);
+        res.json({ message: "Status updated" });
     } catch (err) {
-        console.error('Update Status Error:', err);
-        res.status(500).json({ error: 'อัปเดตสถานะไม่สำเร็จ' });
+        console.error("❌ Update Status Error:", err.message);
+        res.status(500).json({ message: "Update failed", error: err.message });
     }
 });
 
 // ==========================================
-// ✅ 3. ลบรายการแจ้งปัญหา + ลบรูปภาพจริง (DELETE /api/admin/reports/:id)
+// 4. API ลบรายงาน
+// URL: /api/admin/reports/:id
 // ==========================================
 router.delete('/reports/:id', async (req, res) => {
     try {
-        const id = req.params.id;
-
-        // 1. ค้นหาชื่อไฟล์รูปภาพก่อนลบ
-        const [rows] = await db.query('SELECT image_url FROM reports WHERE id = ?', [id]);
-        
-        if (rows.length > 0) {
-            const imagePath = rows[0].image_url; // เช่น /uploads/report-123.jpg
-
-            // ถ้ามีรูปภาพ ให้ลบไฟล์ออกจากโฟลเดอร์ uploads ด้วย
-            if (imagePath) {
-                // แปลง Path ให้เป็นที่อยู่จริงในเครื่อง
-                // __dirname คือโฟลเดอร์ routes, ต้องถอยออกมา 1 ขั้น (..) เพื่อเจอ uploads
-                const fullPath = path.join(__dirname, '..', imagePath);
-
-                // เช็คว่ามีไฟล์อยู่จริงไหม แล้วค่อยลบ
-                if (fs.existsSync(fullPath)) {
-                    fs.unlinkSync(fullPath); // ลบไฟล์
-                    console.log('Deleted file:', fullPath);
-                }
-            }
-        }
-
-        // 2. ลบข้อมูลใน Database
-        const sql = "DELETE FROM reports WHERE id = ?";
-        await db.query(sql, [id]);
-
-        res.json({ message: 'ลบรายการและไฟล์รูปภาพเรียบร้อย' });
-
+        await conn.query("DELETE FROM reports WHERE id = ?", [req.params.id]);
+        res.json({ message: "Deleted successfully" });
     } catch (err) {
-        console.error('Delete Report Error:', err);
-        res.status(500).json({ error: 'ลบรายการไม่สำเร็จ' });
+        console.error("❌ Delete Error:", err.message);
+        res.status(500).json({ message: "Delete failed", error: err.message });
     }
 });
 

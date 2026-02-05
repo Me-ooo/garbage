@@ -1,148 +1,142 @@
 <script setup>
 import { ref, onMounted, computed } from "vue";
+import { useRouter } from "vue-router";
 import axios from "axios";
 import Swal from "sweetalert2";
-import { useRouter } from "vue-router";
-// ตรวจสอบว่าได้ติดตั้ง: npm install vue-cropperjs cropperjs แล้วหรือยัง
-import VueCropper from "vue-cropperjs";
-import "cropperjs/dist/cropper.css";
+import 'vue-cropper/dist/index.css'
+import { VueCropper }  from "vue-cropper";
+// หมายเหตุ: อย่าลืม npm install vue-cropper@next ถ้าจะใช้ Cropper นะครับ
+// ถ้ายังไม่ติดตั้ง ให้ปิดส่วน modal ใน template ไปก่อนครับ
 
 const router = useRouter();
-const isLoading = ref(false);
-
 const API_URL = import.meta.env.VITE_API_BASE_URL;
 
-// ตัวแปรสำหรับ Cropper
-const showCropper = ref(false);
-const tempImage = ref(null); // รูปต้นฉบับที่เลือกมา
-const croppedBlob = ref(null); // รูปที่ตัดเสร็จแล้ว (เป็นไฟล์ Blob)
-const cropper = ref(null); // อ้างอิง component cropper
-const timestamp = ref(Date.now()); // ตัวช่วยแก้ Cache รูป
-
+// ✅ ประกาศตัวแปร form ให้ตรงกับใน Template (แก้ปัญหาหน้าขาว)
 const form = ref({
   id: "",
   fullname: "",
-  phone: "",
+  username: "",
   email: "",
-  image_url: "",
+  phone: "",
+  image_url: ""
 });
 
-// ✅ Computed Property: จัดการการแสดงผลรูปภาพ (ปรับปรุงให้ Robust ขึ้น)
+const selectedFile = ref(null);
+const imagePreview = ref(null);
+const isLoading = ref(false);
+const showCropper = ref(false);
+const tempImage = ref(null);
+
+// ✅ Computed สำหรับแสดงรูปปัจจุบัน (ใช้ใน :src="currentImage")
 const currentImage = computed(() => {
-  // 1. ถ้ามีการตัดรูปใหม่ ให้โชว์รูปที่ตัดทันที (Preview)
-  if (croppedBlob.value) {
-    return URL.createObjectURL(croppedBlob.value);
-  }
+  return imagePreview.value || getImageUrl(form.value.image_url);
+});
 
-  // 2. ถ้ามีรูปเดิมในระบบ
-  if (form.value.image_url) {
-    // กรณีเป็นรูปจาก Google/Facebook (มี http นำหน้า) ให้ใช้เลย
-    if (form.value.image_url.startsWith("http")) {
-      return form.value.image_url;
+// ✅ จัดการ URL รูปภาพ (ดึงจากพอร์ต 3000 ผ่าน Proxy)
+const getImageUrl = (path) => {
+  if (!path) return "/admin-profile.png";
+  if (path.startsWith("data:") || path.startsWith("http")) return path;
+
+  let cleanBase = API_URL.endsWith("/") ? API_URL.slice(0, -1) : API_URL;
+  cleanBase = cleanBase.replace("/api", "");
+
+  const cleanPath = path.startsWith("/") ? path : `/${path}`;
+  return `${cleanBase}${cleanPath}`;
+};
+
+onMounted(async () => {
+  const storedUser = JSON.parse(localStorage.getItem("user") || "{}");
+  if (storedUser.id) {
+    await fetchUserProfile(storedUser.id);
+  } else {
+    router.push("/login");
+  }
+});
+
+const fetchUserProfile = async (userId) => {
+  try {
+    const token = localStorage.getItem("token");
+    const baseUrl = API_URL.endsWith('/') ? API_URL.slice(0, -1) : API_URL;
+
+    const response = await axios.get(`${baseUrl}/api/users/${userId}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+
+    if (response.data) {
+      // ✅ นำข้อมูลมาใส่ใน form
+      form.value = { ...response.data };
     }
-
-    // กรณีเป็นรูปจาก Server ของเรา
-    // ตัด /api ออกเพื่อให้ชี้ไปที่ Root domain (เช่น localhost:3000)
-    const baseUrl = API_URL.replace("/api", "");
-
-    // เช็คว่า path มี / นำหน้าหรือไม่ ถ้าไม่มีให้เติม
-    const path = form.value.image_url;
-    const cleanPath = path.startsWith("/") ? path : `/${path}`;
-
-    // เติม ?t=... เพื่อบังคับให้โหลดรูปใหม่เสมอ (แก้ปัญหา Cache)
-    return `${baseUrl}${cleanPath}?t=${timestamp.value}`;
+  } catch (error) {
+    console.error("Fetch Profile Error:", error);
+    router.push("/login");
   }
+};
 
-  // 3. ถ้าไม่มีอะไรเลย ใช้รูป Default
-  return "/admin-profile.png";
-});
-
-onMounted(() => {
-  const userStr = localStorage.getItem("user");
-  if (userStr) {
-    const user = JSON.parse(userStr);
-    form.value = { ...user };
-  }
-});
-
-// ✅ เมื่อเลือกไฟล์ -> เปิด Modal ตัดรูป
+// ✅ ฟังก์ชันเมื่อเลือกไฟล์รูปภาพ
 const onFileChange = (event) => {
   const file = event.target.files[0];
   if (file) {
-    if (!file.type.match("image.*")) {
-      return Swal.fire("แจ้งเตือน", "กรุณาเลือกไฟล์รูปภาพเท่านั้น", "warning");
+    if (file.size > 5 * 1024 * 1024) {
+      Swal.fire("ผิดพลาด", "ขนาดรูปภาพต้องไม่เกิน 5MB", "error");
+      return;
     }
-
+    selectedFile.value = file;
     const reader = new FileReader();
     reader.onload = (e) => {
-      tempImage.value = e.target.result;
-      showCropper.value = true;
+      imagePreview.value = e.target.result;
+      // ถ้าจะใช้ Cropper ให้เปิดบรรทัดล่างนี้ครับ
+      // tempImage.value = e.target.result;
+      // showCropper.value = true;
     };
     reader.readAsDataURL(file);
   }
-  // Reset input value เพื่อให้เลือกไฟล์เดิมซ้ำได้ถ้าต้องการ
-  event.target.value = "";
 };
 
-// ✅ ฟังก์ชันยืนยันการตัดรูป
-const cropImage = () => {
-  if (cropper.value) {
-    cropper.value.getCroppedCanvas().toBlob((blob) => {
-      croppedBlob.value = blob;
-      showCropper.value = false;
-    });
-  }
-};
-
+// ✅ ฟังก์ชันบันทึกข้อมูล (ใช้ชื่อ updateProfile ตาม Template)
 const updateProfile = async () => {
   if (!form.value.fullname) {
-    return Swal.fire("แจ้งเตือน", "กรุณากรอกชื่อ-นามสกุล", "warning");
+    Swal.fire("แจ้งเตือน", "กรุณากรอกชื่อ-นามสกุล", "warning");
+    return;
   }
-
-  // เช็ค ID ก่อน
-  if (!form.value.id) {
-    return Swal.fire("Error", "ไม่พบข้อมูลผู้ใช้งาน (กรุณา Login ใหม่)", "error");
-  }
-
+  
   isLoading.value = true;
   try {
+    const token = localStorage.getItem("token");
+    const baseUrl = API_URL.endsWith("/") ? API_URL.slice(0, -1) : API_URL;
+
     const formData = new FormData();
     formData.append("fullname", form.value.fullname);
     formData.append("phone", form.value.phone || "");
-
-    // ✅ ส่งไฟล์ที่ Crop แล้ว (ถ้ามี)
-    if (croppedBlob.value) {
-      formData.append("image", croppedBlob.value, "profile.jpg");
+    
+    if (selectedFile.value) {
+      formData.append("image", selectedFile.value);
     }
 
-    const token = localStorage.getItem("token");
+    // ยิงไปที่ /api/users/update/:id ตามที่แก้ใน users.js
+    const response = await axios.put(
+      `${baseUrl}/api/users/update/${form.value.id}`,
+      formData,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "multipart/form-data",
+        },
+      }
+    );
 
-    // ✅ ใช้ API_URL จาก .env และยิงไปที่ /users/:id
-    const res = await axios.put(`${API_URL}/users/${form.value.id}`, formData, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "multipart/form-data",
-      },
-    });
-
-    // อัปเดตข้อมูลใน LocalStorage
-    localStorage.setItem("user", JSON.stringify(res.data.user));
-
-    // ✅ อัปเดต timestamp เพื่อให้รูปเปลี่ยนทันที
-    form.value = res.data.user;
-    timestamp.value = Date.now();
-    croppedBlob.value = null;
+    // อัปเดตข้อมูลใหม่ลง LocalStorage
+    localStorage.setItem("user", JSON.stringify(response.data.user));
 
     Swal.fire({
       icon: "success",
-      title: "บันทึกสำเร็จ",
-      text: "ข้อมูลโปรไฟล์ของคุณถูกอัปเดตแล้ว",
+      title: "สำเร็จ",
+      text: "อัปเดตโปรไฟล์เรียบร้อยแล้ว",
       timer: 1500,
       showConfirmButton: false,
     });
   } catch (error) {
-    console.error(error);
-    Swal.fire("Error", "ไม่สามารถบันทึกข้อมูลได้", "error");
+    console.error("Update Error:", error);
+    Swal.fire("ผิดพลาด", error.response?.data?.message || "ไม่สามารถอัปเดตได้", "error");
   } finally {
     isLoading.value = false;
   }

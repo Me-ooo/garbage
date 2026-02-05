@@ -6,20 +6,29 @@ export default defineConfig({
   server: {
     port: 5173,
     open: true,
-    host: true, // 👈 เพิ่มเพื่อให้เข้าถึงผ่าน IP หรือ ngrok ได้ดีขึ้น
+    host: true, 
     allowedHosts: [
       'retroussa-intrauterine-garret.ngrok-free.dev',
       '.ngrok-free.dev'
     ],
-    // ✅ เพิ่มส่วนนี้เพื่อแก้ปัญหา WebSocket connection failed
+    // ✅ HMR สำหรับ ngrok (คงไว้ตามเดิม ดีแล้วครับ)
     hmr: {
       protocol: 'wss',
       clientPort: 443,
     },
+    // ✅ Proxy: หัวใจสำคัญของการเชื่อมต่อ
     proxy: {
+      // 1. ส่งคำสั่ง API ไป Backend
       '/api': {
         target: 'http://localhost:3000',
         changeOrigin: true,
+        secure: false,
+      },
+      // 2. 🚩 เพิ่มส่วนนี้! ส่งคำขอรูปภาพ (/uploads) ไป Backend
+      '/uploads': {
+        target: 'http://localhost:3000',
+        changeOrigin: true,
+        secure: false,
       }
     }
   }

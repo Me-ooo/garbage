@@ -1,72 +1,78 @@
 const express = require('express');
 const router = express.Router();
-const db = require('../config/db'); // ใช้ pool.promise()
+const db = require('../config/db'); 
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 
-// ==========================================
-// ✅ 1. ตั้งค่าการอัปโหลดไฟล์ (Multer)
-// ==========================================
-// ใช้ process.cwd() เพื่อให้ชัวร์ว่าอ้างอิงจาก Root Project
+// 1. ตั้งค่า Multer (เหมือนเดิม)
 const uploadDir = path.join(process.cwd(), 'uploads');
 if (!fs.existsSync(uploadDir)) {
     fs.mkdirSync(uploadDir, { recursive: true });
 }
-
 const storage = multer.diskStorage({
-    destination: (req, file, cb) => {
-        cb(null, 'uploads/');
-    },
+    destination: (req, file, cb) => { cb(null, 'uploads/'); },
     filename: (req, file, cb) => {
         cb(null, 'user-' + Date.now() + path.extname(file.originalname));
     }
 });
-
 const upload = multer({ storage: storage });
 
-// ==========================================
-// ✅ 2. ดึงรายชื่อ Users ทั้งหมด (สำหรับ Admin Dashboard)
-// ==========================================
+// ✅ 2. ดึงรายชื่อ Users (ปรับให้ส่ง Path สั้นๆ)
 router.get('/', async (req, res) => {
     try {
         const sql = 'SELECT id, fullname, email, phone, role, image_url, created_at FROM users ORDER BY created_at DESC';
         const [results] = await db.query(sql);
-
-        // 🚩 ปรับให้ส่ง Full URL กลับไป (รองรับ ngrok)
-        const updatedResults = results.map(user => ({
-            ...user,
-            image_url: user.image_url 
-                ? `${req.protocol}://${req.get('host')}${user.image_url}` 
-                : null
-        }));
-
-        res.json(updatedResults);
+        // ส่ง results ไปตรงๆ ไม่ต้องบวก Protocol/Host
+        res.json(results);
     } catch (err) {
         console.error(err);
         res.status(500).json({ error: 'เกิดข้อผิดพลาดในการดึงข้อมูลผู้ใช้' });
     }
 });
 
-// ==========================================
-// ✅ 4. อัปเดตโปรไฟล์ (ในส่วนการส่งข้อมูลกลับ)
-// ==========================================
-router.put('/:id', upload.single('image'), async (req, res) => {
+// ✅ 3. ดึงโปรไฟล์รายบุคคล (สำหรับหน้า Profile)
+router.get('/:id', async (req, res) => {
     try {
-        // ... โค้ดส่วน Update เดิมของโอมมี่ (ถูกต้องแล้ว) ...
-
-        // 🚩 ตอนดึงข้อมูลใหม่ส่งกลับไป ให้แก้ตรงนี้ด้วยครับ
+        const { id } = req.params;
         const [rows] = await db.query('SELECT id, fullname, email, phone, role, image_url FROM users WHERE id = ?', [id]);
-        const updatedUser = {
-            ...rows[0],
-            image_url: rows[0].image_url 
-                ? `${req.protocol}://${req.get('host')}${rows[0].image_url}` 
-                : null
-        };
+        if (rows.length === 0) return res.status(404).json({ message: 'ไม่พบผู้ใช้งาน' });
+        res.json(rows[0]);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// ✅ 4. อัปเดตโปรไฟล์ (แก้ Path ให้ตรงกับที่ Frontend เรียก)
+// 🚩 แก้จาก /:id เป็น /update/:id เพื่อให้ตรงกับ axios.put(`${baseUrl}/api/users/update/${user.value.id}`)
+router.put('/update/:id', upload.single('image'), async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { fullname, phone } = req.body;
+        let imageUrl = null;
+
+        if (req.file) {
+            imageUrl = `/uploads/${req.file.filename}`;
+            // (Optional) โค้ดลบรูปเก่าโอมมี่ใส่เพิ่มตรงนี้ได้ครับ
+        }
+
+        let sql = 'UPDATE users SET fullname = ?, phone = ?';
+        let params = [fullname, phone];
+
+        if (imageUrl) {
+            sql += ', image_url = ?';
+            params.push(imageUrl);
+        }
+        sql += ' WHERE id = ?';
+        params.push(id);
+
+        await db.query(sql, params);
+
+        const [rows] = await db.query('SELECT id, fullname, email, phone, role, image_url FROM users WHERE id = ?', [id]);
         
         res.json({ 
             message: 'Update Profile Success', 
-            user: updatedUser 
+            user: rows[0] // ส่ง Path สั้นๆ กลับไป
         });
 
     } catch (err) {
@@ -75,20 +81,21 @@ router.put('/:id', upload.single('image'), async (req, res) => {
     }
 });
 
-// ==========================================
-// ✅ 5. เปลี่ยนสิทธิ์ผู้ใช้ (PUT /api/users/:id/role)
-// ==========================================
-router.put('/:id/role', async (req, res) => {
+router.get('/:id', async (req, res) => {
     try {
         const { id } = req.params;
-        const { role } = req.body; // รับค่า 'user' หรือ 'admin'
+        const sql = 'SELECT id, fullname, username, email, phone, role, image_url FROM users WHERE id = ?';
+        const [rows] = await db.query(sql, [id]);
 
-        await db.query('UPDATE users SET role = ? WHERE id = ?', [role, id]);
-        res.json({ message: 'เปลี่ยนสิทธิ์ผู้ใช้งานเรียบร้อยแล้ว' });
+        if (rows.length === 0) {
+            return res.status(404).json({ message: 'ไม่พบผู้ใช้งาน' });
+        }
+
+        // ส่งข้อมูลกลับไปให้หน้าบ้าน (ไม่ต้องใส่ Full URL เพราะหน้าบ้านมี getImageUrl แล้ว)
+        res.json(rows[0]);
     } catch (err) {
-        console.error(err);
-        res.status(500).json({ error: 'ไม่สามารถเปลี่ยนสิทธิ์ได้' });
+        console.error('Fetch User Error:', err);
+        res.status(500).json({ error: 'Database Error' });
     }
 });
-
 module.exports = router;

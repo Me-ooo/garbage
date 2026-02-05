@@ -183,6 +183,8 @@ let DefaultIcon = L.icon({
 L.Marker.prototype.options.icon = DefaultIcon;
 
 const router = useRouter();
+
+// ✅ ดึง Base URL (ถ้าใน .env เป็น / ค่านี้จะเป็น /)
 const API_URL = import.meta.env.VITE_API_BASE_URL;
 
 const userName = ref("Guest");
@@ -202,7 +204,7 @@ const menuItems = [
 ];
 
 const formData = ref({
-  category: "", // ใช้ประกอบ Title แทนเพราะ DB ไม่มีช่องนี้
+  category: "",
   title: "",
   latitude: 13.7563,
   longitude: 100.5018,
@@ -211,18 +213,22 @@ const formData = ref({
   image: null,
 });
 
-// ✅ ปรับปรุง getImageUrl ให้ปลอดภัยขึ้น
+// ✅ ปรับปรุง getImageUrl ให้รองรับ Proxy (ตัด localhost ออก)
 const getImageUrl = (path) => {
   if (!path) return "/admin-profile.png";
-  if (path.startsWith("http")) return path;
-  
-  // ตัด /api ออก เพื่อให้เหลือ Base URL ของ Server
-  const baseUrl = API_URL.replace("/api", "");
-  
-  // เช็คว่า path มี / นำหน้าหรือไม่ ถ้าไม่มีให้เติม
-  const cleanPath = path.startsWith("/") ? path : `/${path}`;
-  
-  return `${baseUrl}${cleanPath}`;
+
+  let cleanPath = path;
+  if (path.includes("localhost:3000")) {
+    cleanPath = path.split("localhost:3000")[1];
+  }
+
+  if (cleanPath.startsWith("data:") || cleanPath.startsWith("http")) return cleanPath;
+
+  let cleanBase = API_URL.endsWith("/") ? API_URL.slice(0, -1) : API_URL;
+  cleanBase = cleanBase.replace("/api", "");
+
+  const finalPath = cleanPath.startsWith("/") ? cleanPath : `/${cleanPath}`;
+  return `${cleanBase}${finalPath}`;
 };
 
 const userImage = computed(() => {
@@ -248,10 +254,7 @@ onMounted(() => {
 
 const initializeMap = () => {
   if (!mapContainer.value) return;
-
-  if (map.value) {
-    map.value.remove();
-  }
+  if (map.value) map.value.remove();
 
   map.value = L.map(mapContainer.value).setView(
     [formData.value.latitude, formData.value.longitude],
@@ -273,14 +276,12 @@ const initializeMap = () => {
   });
 
   setTimeout(() => {
-    map.value.invalidateSize();
+    if (map.value) map.value.invalidateSize();
   }, 100);
 };
 
 const addMarker = (lat, lng) => {
-  if (marker.value) {
-    map.value.removeLayer(marker.value);
-  }
+  if (marker.value) map.value.removeLayer(marker.value);
   marker.value = L.marker([lat, lng]).addTo(map.value);
 };
 
@@ -289,10 +290,6 @@ const handleImageUpload = (event) => {
   if (file) {
     if (file.size > 5 * 1024 * 1024) {
       alert("ขนาดไฟล์ต้องไม่เกิน 5 MB");
-      return;
-    }
-    if (!file.type.startsWith("image/")) {
-      alert("โปรดเลือกไฟล์รูปภาพ");
       return;
     }
     fileName.value = file.name;
@@ -318,7 +315,7 @@ const handleSubmit = async () => {
     errorMessage.value = "กรุณากรอกข้อมูลให้ครบถ้วน (ประเภท, หัวข้อ, เบอร์โทร)";
     return;
   }
-  if (!uploadedImage.value) {
+  if (!formData.value.image) {
     errorMessage.value = "กรุณาอัพโหลดรูปภาพประกอบ";
     return;
   }
@@ -328,7 +325,6 @@ const handleSubmit = async () => {
 
   try {
     const data = new FormData();
-    // รวม Category เข้ากับ Title เพื่อให้ดูง่ายใน DB
     data.append("title", `[${formData.value.category}] ${formData.value.title}`);
     data.append("description", formData.value.description);
     data.append("latitude", formData.value.latitude);
@@ -344,8 +340,11 @@ const handleSubmit = async () => {
 
     const token = localStorage.getItem("token");
 
-    // ✅ ส่งไปที่ /reports (เช็ค API_URL)
-    await axios.post(`${API_URL}/reports`, data, {
+    // 🚩 ปรับจุดส่ง URL ให้เข้ากับระบบ Proxy
+    const baseUrl = API_URL.endsWith("/") ? API_URL.slice(0, -1) : API_URL;
+
+    // ยิงไปที่ /api/reports ผ่าน Proxy
+    await axios.post(`${baseUrl}/api/reports`, data, {
       headers: {
         Authorization: `Bearer ${token}`,
         "Content-Type": "multipart/form-data",
@@ -353,9 +352,8 @@ const handleSubmit = async () => {
     });
 
     successMessage.value = "✓ แจ้งปัญหาเรียบร้อยแล้ว!";
-
     setTimeout(() => {
-      router.push("/"); 
+      router.push("/");
     }, 1500);
   } catch (error) {
     console.error(error);
@@ -366,9 +364,7 @@ const handleSubmit = async () => {
 };
 
 const handleCancel = () => {
-  if (confirm("ยกเลิกการแจ้งเรื่อง? ข้อมูลที่กรอกจะหายไป")) {
-    router.push("/");
-  }
+  if (confirm("ยกเลิกการแจ้งเรื่อง? ข้อมูลที่กรอกจะหายไป")) router.push("/");
 };
 
 const handleMenuClick = (menuId) => {

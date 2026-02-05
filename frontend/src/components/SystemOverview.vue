@@ -1,18 +1,9 @@
 <template>
   <div class="overview-container">
     <header class="header">
-      <div
-        class="user-profile"
-        @click="$router.push('/profile')"
-        style="cursor: pointer"
-        title="แก้ไขโปรไฟล์"
-      >
-        <img
-          :src="userImage"
-          alt="Admin Avatar"
-          class="profile-img"
-          @error="$event.target.src = 'https://placehold.co/40x40?text=Admin'"
-        />
+      <div class="user-profile" @click="$router.push('/profile')" style="cursor: pointer" title="แก้ไขโปรไฟล์">
+        <img :src="userImage" alt="Admin Avatar" class="profile-img"
+          @error="$event.target.src = 'https://placehold.co/40x40?text=Admin'" />
         <span>{{ userName }}</span>
       </div>
       <button class="logout-btn" @click="logout">ออกจากระบบ</button>
@@ -21,11 +12,8 @@
     <div class="container">
       <aside class="sidebar">
         <div class="banner-box">
-          <img
-            src="/admin-sidebar.png"
-            alt="Admin Banner"
-            @error="$event.target.src = 'https://placehold.co/250x150'"
-          />
+          <img src="/admin-sidebar.png" alt="Admin Banner"
+            @error="$event.target.src = 'https://placehold.co/250x150'" />
         </div>
 
         <div class="nav-menu">
@@ -55,13 +43,8 @@
         </div>
 
         <div v-else>
-          <AdminStats
-            :totalUsers="users.length"
-            :totalReports="reports.length"
-            :pendingReports="pendingCount"
-            :inProgressReports="progressCount"
-            :resolvedReports="resolvedCount"
-          />
+          <AdminStats :totalUsers="users.length" :totalReports="reports.length" :pendingReports="pendingCount"
+            :inProgressReports="progressCount" :resolvedReports="resolvedCount" />
 
           <div class="summary-section mt-4">
             <h3 class="section-title">
@@ -102,31 +85,43 @@
 
 <script setup>
 import { ref, onMounted, computed } from "vue";
-import axios from "axios";
 import { useRouter } from "vue-router";
-// ✅ ตรวจสอบว่าไฟล์ AdminStats.vue อยู่ในโฟลเดอร์เดียวกัน
-import AdminStats from "./AdminStats.vue";
+import axios from "axios";
+import Swal from "sweetalert2";
+
+// ✅ 1. Import Component ลูก
+import AdminStats from "../components/AdminStats.vue";
 
 const router = useRouter();
 const API_URL = import.meta.env.VITE_API_BASE_URL;
 
-const reports = ref([]);
-const users = ref([]);
-const loading = ref(false);
+// ประกาศตัวแปรแยกเพื่อให้ใช้กับ .length ใน Template ได้ง่าย
+const users = ref({ length: 0 });
+const reports = ref({ length: 0 });
+const pendingCount = ref(0);
+const progressCount = ref(0);
+const resolvedCount = ref(0);
+const loading = ref(true);
+
 const userName = ref("Admin");
 
-// ✅ ฟังก์ชันจัดการ URL รูปภาพ (ปรับปรุงให้ปลอดภัย)
+// ✅ 2. ฟังก์ชันจัดการ URL รูปภาพ (แบบ Proxy Friendly)
 const getImageUrl = (path) => {
-  if (!path) return "";
-  if (path.startsWith("http")) return path;
-  
-  // ตัด /api ออก เพื่อชี้ไปที่ Base URL
-  const baseUrl = API_URL.replace("/api", "");
-  
-  // เช็คว่า path มี / นำหน้าหรือไม่
-  const cleanPath = path.startsWith("/") ? path : `/${path}`;
-  
-  return `${baseUrl}${cleanPath}`;
+  if (!path) return "/admin-profile.png";
+
+  let cleanPath = path;
+  if (path.includes('localhost:3000')) {
+    cleanPath = path.split('localhost:3000')[1];
+  }
+
+  if (cleanPath.startsWith("data:") || cleanPath.startsWith("https")) return cleanPath;
+
+  // เรียกผ่าน root domain ของ ngrok
+  let baseUrl = API_URL.endsWith('/') ? API_URL.slice(0, -1) : API_URL;
+  baseUrl = baseUrl.replace('/api', '');
+
+  const finalPath = cleanPath.startsWith("/") ? cleanPath : `/${cleanPath}`;
+  return `${baseUrl}${finalPath}`;
 };
 
 const userImage = computed(() => {
@@ -138,60 +133,65 @@ const userImage = computed(() => {
   return "/admin-profile.png";
 });
 
-// ✅ Computed Properties สำหรับคำนวณตัวเลข
-const pendingCount = computed(
-  () => reports.value.filter((r) => r.status === "pending").length
-);
-const resolvedCount = computed(
-  () => reports.value.filter((r) => r.status === "resolved").length
-);
-const progressCount = computed(
-  () => reports.value.filter((r) => r.status === "in_progress").length
-);
+onMounted(async () => {
+  const userStr = localStorage.getItem("user");
+  const user = JSON.parse(userStr || "{}");
 
-const fetchData = async () => {
+  if (user.role !== "admin") {
+    Swal.fire({ icon: "error", title: "ปฏิเสธการเข้าถึง", text: "คุณไม่มีสิทธิ์เข้าถึงหน้านี้" });
+    router.push("/");
+    return;
+  }
+
+  userName.value = user.fullname || user.username || "Admin";
+  await fetchSystemOverview();
+});
+
+const fetchSystemOverview = async () => {
   loading.value = true;
   try {
     const token = localStorage.getItem("token");
-    const config = { headers: { Authorization: `Bearer ${token}` } };
 
-    // ✅ เรียก API (ปรับ Endpoint ให้ตรงกับ server.js และ AdminDashboard)
-    const [reportsRes, usersRes] = await Promise.all([
-      axios.get(`${API_URL}/reports`, config), // เปลี่ยนจาก /admin/reports เป็น /reports
-      axios.get(`${API_URL}/users`, config),
-    ]);
+    // 🚩 ยิงไปที่ /api/admin/stats
+    const response = await axios.get(`/api/admin/stats`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
 
-    reports.value = reportsRes.data;
-    users.value = usersRes.data;
-  } catch (err) {
-    console.error("Fetch Error:", err);
-    if (err.response?.status === 401) {
-      router.push("/login");
+    // ตรวจสอบโครงสร้างข้อมูลผ่าน Console
+    console.log("📊 Data from Backend:", response.data);
+
+    const data = response.data;
+
+    if (data) {
+      // ✅ Mapping ข้อมูล (ดักไว้ทั้งแบบตัวพิมพ์เล็กและตัวพิมพ์ใหญ่)
+      const totalU = data.totalUsers ?? data.total_users ?? 0;
+      const totalR = data.totalReports ?? data.total_reports ?? 0;
+
+      // อัปเดตเพื่อให้ users.length และ reports.length ทำงาน
+      users.value = { length: totalU };
+      reports.value = { length: totalR };
+
+      pendingCount.value = data.pending ?? 0;
+      progressCount.value = data.inProgress ?? data.in_progress ?? 0;
+      resolvedCount.value = data.resolved ?? 0;
     }
+
+  } catch (error) {
+    console.error("Fetch Overview Error:", error);
+    if (error.response?.status === 401) router.push("/login");
   } finally {
     loading.value = false;
   }
 };
 
-// ✅ ส่ง Query Param 'tab' ไปด้วย เพื่อให้ AdminDashboard เปิดถูกหน้า
-const goToAdmin = (tabName) => {
-  // ตรวจสอบ Router ของคุณว่าตั้ง path ไว้ที่ /admin หรือ /reportimage
-  // ในที่นี้สมมติว่าเป็น /admin
-  router.push({ path: "/admin", query: { tab: tabName } });
+const goToAdmin = (tab) => {
+  router.push({ path: '/admin-dashboard', query: { tab: tab } });
 };
 
 const logout = () => {
-  if (confirm("ต้องการออกจากระบบ?")) {
-    localStorage.clear();
-    router.push("/login");
-  }
+  localStorage.clear();
+  router.push("/login");
 };
-
-onMounted(() => {
-  const user = JSON.parse(localStorage.getItem("user") || "{}");
-  if (user.fullname) userName.value = user.fullname;
-  fetchData();
-});
 </script>
 
 <style scoped>
@@ -199,6 +199,7 @@ onMounted(() => {
 :root {
   --primary-green: #2e5936;
 }
+
 * {
   box-sizing: border-box;
 }
@@ -212,6 +213,7 @@ onMounted(() => {
   font-family: "Kanit";
   overflow: hidden;
 }
+
 .header {
   background: #2e5936;
   color: white;
@@ -221,12 +223,14 @@ onMounted(() => {
   align-items: center;
   box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
 }
+
 .user-profile {
   display: flex;
   align-items: center;
   gap: 10px;
   cursor: pointer;
 }
+
 .profile-img {
   width: 40px;
   height: 40px;
@@ -234,6 +238,7 @@ onMounted(() => {
   border: 2px solid white;
   object-fit: cover;
 }
+
 .logout-btn {
   background: #ddd;
   color: #333;
@@ -253,6 +258,7 @@ onMounted(() => {
   padding: 0 10px;
   overflow-y: auto;
 }
+
 .sidebar {
   width: 250px;
   flex-shrink: 0;
@@ -260,6 +266,7 @@ onMounted(() => {
   flex-direction: column;
   gap: 15px;
 }
+
 .banner-box img {
   width: 100%;
   border-radius: 15px;
@@ -298,6 +305,7 @@ onMounted(() => {
 .menu-btn:hover {
   background-color: #e0e0e0;
 }
+
 .menu-btn i {
   font-size: 1.2rem;
   width: 25px;
@@ -309,6 +317,7 @@ onMounted(() => {
   color: white !important;
   box-shadow: 0 4px 8px rgba(46, 89, 54, 0.3);
 }
+
 .active-btn i {
   color: white !important;
 }
@@ -319,9 +328,11 @@ onMounted(() => {
   justify-content: center;
   margin-top: auto;
 }
+
 .back-home-btn:hover {
   background-color: #333;
 }
+
 .spacer {
   flex-grow: 1;
 }
@@ -334,14 +345,17 @@ onMounted(() => {
   padding: 40px;
   overflow-y: auto;
 }
+
 .content-header {
   margin-bottom: 30px;
   text-align: center;
 }
+
 .content-header h2 {
   margin-bottom: 5px;
   color: #333;
 }
+
 .content-header p {
   color: #888;
 }
@@ -353,6 +367,7 @@ onMounted(() => {
   border-radius: 20px;
   border: 1px solid #eee;
 }
+
 .section-title {
   font-size: 1.5rem;
   color: #555;
@@ -378,6 +393,7 @@ onMounted(() => {
   transition: transform 0.2s;
   min-height: 180px;
 }
+
 .summary-card:hover {
   transform: translateY(-8px);
 }
@@ -406,6 +422,7 @@ onMounted(() => {
   text-align: right;
   flex-grow: 1;
 }
+
 .card-details h4 {
   margin: 0 0 10px 0;
   font-size: 1.8rem;
@@ -413,12 +430,14 @@ onMounted(() => {
   opacity: 0.95;
   white-space: nowrap;
 }
+
 .card-details p {
   margin: 0;
   font-size: 4.5rem;
   font-weight: bold;
   line-height: 1;
 }
+
 .unit {
   font-size: 1.2rem;
   font-weight: normal;
@@ -430,6 +449,7 @@ onMounted(() => {
   background: linear-gradient(135deg, #5c9454 0%, #3e6b39 100%);
   border-bottom: 8px solid #2e5936;
 }
+
 .progress {
   background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
   border-bottom: 8px solid #1a5276;
@@ -439,9 +459,11 @@ onMounted(() => {
   .summary-grid {
     grid-template-columns: 1fr;
   }
+
   .card-details h4 {
     font-size: 1.4rem;
   }
+
   .card-details p {
     font-size: 3.5rem;
   }
@@ -451,6 +473,7 @@ onMounted(() => {
   .container {
     flex-direction: column;
   }
+
   .sidebar {
     width: 100%;
   }

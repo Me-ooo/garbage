@@ -256,35 +256,66 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from "vue";
-import axios from "axios";
-import Swal from "sweetalert2";
+import { ref, onMounted, computed, nextTick } from "vue";
 import { useRouter } from "vue-router";
+import axios from "axios";
+import L from "leaflet";
+import "leaflet/dist/leaflet.css";
+
+// ⚠️ แก้ Bug Icon Leaflet หาย
+import icon from "leaflet/dist/images/marker-icon.png";
+import iconShadow from "leaflet/dist/images/marker-shadow.png";
+
+let DefaultIcon = L.icon({
+  iconUrl: icon,
+  shadowUrl: iconShadow,
+  iconSize: [25, 41],
+  iconAnchor: [12, 41],
+});
+L.Marker.prototype.options.icon = DefaultIcon;
 
 const router = useRouter();
+
+// ✅ ดึงค่า Base URL (ถ้าใน .env เป็น / ค่านี้จะเป็น /)
 const API_URL = import.meta.env.VITE_API_BASE_URL;
 
-const activeTab = ref("reports");
-const reports = ref([]);
-const users = ref([]);
-const loading = ref(false);
-const userName = ref("Admin");
+const userName = ref("Guest");
+const fileInput = ref(null);
+const mapContainer = ref(null);
+const map = ref(null);
+const marker = ref(null);
+const uploadedImage = ref(null);
+const fileName = ref("");
+const isLoading = ref(false);
+const successMessage = ref("");
+const errorMessage = ref("");
 
-const searchText = ref("");
-const filterStatus = ref("all");
+const menuItems = [
+  { id: "home", label: "หน้าหลัก" },
+  { id: "report", label: "แจ้งปัญหา" },
+];
 
-// ✅ ฟังก์ชันจัดการ URL รูปภาพ (ปรับปรุงให้ปลอดภัย)
+const formData = ref({
+  category: "", 
+  title: "",
+  latitude: 13.7563,
+  longitude: 100.5018,
+  description: "",
+  contact: "",
+  image: null,
+});
+
+// ✅ ปรับปรุง getImageUrl ให้รองรับ Proxy (ดึงรูปจาก Port 3000)
 const getImageUrl = (path) => {
-  if (!path) return "";
+  if (!path) return "/admin-profile.png";
   if (path.startsWith("http")) return path;
-
-  // ตัด /api ออก
-  const baseUrl = API_URL.replace("/api", "");
-
-  // เช็คว่า path มี / นำหน้าหรือไม่
+  
+  // ตัด /api ออกเพื่อให้เหลือแค่ Domain ของ ngrok
+  let cleanBase = API_URL.endsWith('/') ? API_URL.slice(0, -1) : API_URL;
+  cleanBase = cleanBase.replace('/api', '');
+  
   const cleanPath = path.startsWith("/") ? path : `/${path}`;
-
-  return `${baseUrl}${cleanPath}`;
+  return `${cleanBase}${cleanPath}`;
 };
 
 const userImage = computed(() => {
@@ -296,225 +327,142 @@ const userImage = computed(() => {
   return "/admin-profile.png";
 });
 
-const pendingCount = computed(
-  () => reports.value.filter((r) => r.status === "pending").length
-);
-
-const filteredReports = computed(() => {
-  return reports.value.filter((report) => {
-    const matchStatus =
-      filterStatus.value === "all" || report.status === filterStatus.value;
-    const query = searchText.value.toLowerCase();
-    const matchSearch =
-      (report.title && report.title.toLowerCase().includes(query)) ||
-      (report.description && report.description.toLowerCase().includes(query)) ||
-      (report.username && report.username.toLowerCase().includes(query));
-    return matchStatus && matchSearch;
-  });
-});
-
-const filteredUsers = computed(() => {
-  return users.value.filter((user) => {
-    const query = searchText.value.toLowerCase();
-    return (
-      (user.fullname && user.fullname.toLowerCase().includes(query)) ||
-      (user.username && user.username.toLowerCase().includes(query)) ||
-      (user.email && user.email.toLowerCase().includes(query))
-    );
-  });
-});
-
-const getAuthConfig = () => {
-  const token = localStorage.getItem("token");
-  return { headers: { Authorization: `Bearer ${token}` } };
-};
-
-const fetchData = async () => {
-  loading.value = true;
-  try {
-    const config = getAuthConfig();
-    // ✅ เรียก API (ปรับ endpoint ให้ตรงกับ server.js ทั่วไป)
-    const [reportsRes, usersRes] = await Promise.all([
-      axios.get(`${API_URL}/reports`, config), // ใช้ /reports แทน /admin/reports ถ้า Backend ไม่ได้แยก
-      axios.get(`${API_URL}/users`, config),
-    ]);
-    reports.value = reportsRes.data;
-    users.value = usersRes.data;
-  } catch (err) {
-    if (err.response && (err.response.status === 401 || err.response.status === 403)) {
-      Swal.fire({
-        icon: "error",
-        title: "Session หมดอายุ",
-        text: "กรุณาเข้าสู่ระบบใหม่",
-      });
-      localStorage.clear();
-      router.push("/login");
-    }
-  }
-  loading.value = false;
-};
-
-// ✅ ดูรายละเอียดและส่งต่อ (แก้ไขลิงก์ Google Maps)
-const viewAndForward = (report) => {
-  // แก้ไข URL แผนที่ให้ถูกต้อง
-  const mapLink = `https://www.google.com/maps?q=${report.latitude},${report.longitude}`;
-
-  Swal.fire({
-    title: `<strong>${report.title}</strong>`,
-    html: `
-      <div style="text-align: left; font-size: 0.95rem;">
-        <div style="margin-bottom: 15px; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 10px rgba(0,0,0,0.1);">
-          <img src="${getImageUrl(report.image_url)}" 
-               style="width:100%; max-height:250px; object-fit:cover; display:block;"
-               onerror="this.style.display='none'">
-        </div>
-        <div style="background:#f9f9f9; padding:15px; border-radius:10px; margin-bottom:15px;">
-          <p class="mb-1"><strong>👤 ผู้แจ้ง:</strong> ${report.username || "ไม่ระบุ"}</p>
-          <p class="mb-1"><strong>📞 เบอร์โทร:</strong> ${report.contact || "-"}</p>
-          <p class="mb-1"><strong>📝 รายละเอียด:</strong> ${report.description}</p>
-          <p class="mb-0"><strong>📍 พิกัด:</strong> ${report.latitude}, ${
-      report.longitude
-    }</p>
-        </div>
-        <a href="${mapLink}" target="_blank" class="btn-map" style="display:block; text-align:center; background:#4285F4; color:white; padding:10px; border-radius:30px; text-decoration:none; font-weight:bold; margin-bottom:15px;">
-          <i class="bi bi-geo-alt-fill"></i> เปิดใน Google Maps
-        </a>
-        <hr style="margin: 15px 0; border-color:#eee;">
-        <label style="font-weight:bold; display:block; margin-bottom:8px;">ส่งต่อไปยังหน่วยงาน:</label>
-        <select id="agency-select" class="swal2-input" style="width: 100%; margin: 0; border-radius:8px;">
-          <option value="" disabled selected>-- เลือกหน่วยงาน --</option>
-          <option value="อบต.">อบต.</option>
-          <option value="สำนักงานเขต">สำนักงานเขต</option>
-          <option value="กรมทางหลวง">กรมทางหลวง</option>
-          <option value="การไฟฟ้า">การไฟฟ้า</option>
-        </select>
-      </div>
-    `,
-    showCancelButton: true,
-    confirmButtonText: '<i class="bi bi-send"></i> ส่งเรื่อง',
-    confirmButtonColor: "#2e5936",
-    cancelButtonText: "ปิด",
-    preConfirm: () => {
-      const agency = document.getElementById("agency-select").value;
-      if (!agency) Swal.showValidationMessage("กรุณาเลือกหน่วยงาน");
-      return agency;
-    },
-  }).then((result) => {
-    if (result.isConfirmed) {
-      Swal.fire({
-        icon: "success",
-        title: "ส่งเรื่องสำเร็จ!",
-        text: `ส่งไปยัง ${result.value} เรียบร้อย`,
-        timer: 2000,
-        showConfirmButton: false,
-      });
-    }
-  });
-};
-
-const updateStatus = async (id, newStatus) => {
-  try {
-    // ปรับ endpoint ให้ตรงกับ reportRoutes
-    await axios.put(
-      `${API_URL}/reports/${id}/status`,
-      { status: newStatus },
-      getAuthConfig()
-    );
-    Swal.mixin({
-      toast: true,
-      position: "top-end",
-      showConfirmButton: false,
-      timer: 2000,
-    }).fire({ icon: "success", title: "อัปเดตสถานะเรียบร้อย" });
-  } catch (err) {
-    Swal.fire("Error", "ไม่สามารถอัปเดตสถานะได้", "error");
-    fetchData(); // โหลดข้อมูลใหม่คืนค่าเดิม
-  }
-};
-
-const deleteReport = async (id) => {
-  if (
-    await Swal.fire({
-      title: "ยืนยันการลบ?",
-      text: "ข้อมูลนี้จะถูกลบออกจากระบบ",
-      icon: "warning",
-      showCancelButton: true,
-      confirmButtonColor: "#d33",
-      confirmButtonText: "ลบเลย",
-      cancelButtonText: "ยกเลิก",
-    }).then((r) => r.isConfirmed)
-  ) {
-    await axios.delete(`${API_URL}/reports/${id}`, getAuthConfig());
-    fetchData();
-    Swal.fire("ลบสำเร็จ", "", "success");
-  }
-};
-
-const deleteUser = async (id) => {
-  if (
-    await Swal.fire({
-      title: "ยืนยันการลบ?",
-      text: "ผู้ใช้นี้จะถูกลบออกจากระบบ",
-      icon: "warning",
-      showCancelButton: true,
-      confirmButtonColor: "#d33",
-      confirmButtonText: "ลบเลย",
-      cancelButtonText: "ยกเลิก",
-    }).then((r) => r.isConfirmed)
-  ) {
-    await axios.delete(`${API_URL}/users/${id}`, getAuthConfig());
-    fetchData();
-    Swal.fire("ลบสำเร็จ", "", "success");
-  }
-};
-
-// ✅ เพิ่มฟังก์ชันเปลี่ยนสิทธิ์
-const changeUserRole = async (id, role) => {
-  try {
-    await axios.put(`${API_URL}/users/${id}/role`, { role }, getAuthConfig());
-    Swal.fire("สำเร็จ", "เปลี่ยนสิทธิ์ผู้ใช้เรียบร้อย", "success");
-    fetchData();
-  } catch (err) {
-    Swal.fire("Error", "เปลี่ยนสิทธิ์ไม่ได้", "error");
-  }
-};
-
-const logout = () => {
-  Swal.fire({
-    title: "ยืนยันการออกจากระบบ?",
-    icon: "warning",
-    showCancelButton: true,
-    confirmButtonColor: "#3085d6",
-    cancelButtonColor: "#d33",
-    confirmButtonText: "ใช่, ออกจากระบบ",
-    cancelButtonText: "ยกเลิก",
-  }).then((result) => {
-    if (result.isConfirmed) {
-      localStorage.clear();
-      router.push("/login");
-    }
-  });
-};
-
-const goToHome = () => router.push("/");
-const getStatusClass = (s) =>
-  ({
-    pending: "status-pending",
-    in_progress: "status-progress",
-    resolved: "status-resolved",
-  }[s]);
-const formatDate = (d) =>
-  new Date(d).toLocaleDateString("th-TH", {
-    year: "2-digit",
-    month: "2-digit",
-    day: "2-digit",
-  });
-
 onMounted(() => {
-  const user = JSON.parse(localStorage.getItem("user") || "{}");
-  if (user.fullname) userName.value = user.fullname;
-  fetchData();
+  const userStr = localStorage.getItem("user");
+  if (userStr) {
+    const user = JSON.parse(userStr);
+    userName.value = user.fullname || user.username || "Guest";
+  }
+
+  nextTick(() => {
+    initializeMap();
+  });
 });
+
+const initializeMap = () => {
+  if (!mapContainer.value) return;
+  if (map.value) map.value.remove();
+
+  map.value = L.map(mapContainer.value).setView(
+    [formData.value.latitude, formData.value.longitude],
+    13
+  );
+
+  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    attribution: "© OpenStreetMap contributors",
+    maxZoom: 19,
+  }).addTo(map.value);
+
+  addMarker(formData.value.latitude, formData.value.longitude);
+
+  map.value.on("click", (e) => {
+    const { lat, lng } = e.latlng;
+    addMarker(lat, lng);
+    formData.value.latitude = lat.toFixed(6);
+    formData.value.longitude = lng.toFixed(6);
+  });
+
+  setTimeout(() => {
+    if (map.value) map.value.invalidateSize();
+  }, 100);
+};
+
+const addMarker = (lat, lng) => {
+  if (marker.value) map.value.removeLayer(marker.value);
+  marker.value = L.marker([lat, lng]).addTo(map.value);
+};
+
+const handleImageUpload = (event) => {
+  const file = event.target.files[0];
+  if (file) {
+    if (file.size > 5 * 1024 * 1024) {
+      alert("ขนาดไฟล์ต้องไม่เกิน 5 MB");
+      return;
+    }
+    fileName.value = file.name;
+    formData.value.image = file; // เก็บไฟล์จริงไว้ส่ง Backend
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      uploadedImage.value = e.target.result; // สำหรับ Preview ในหน้าเว็บ
+    };
+    reader.readAsDataURL(file);
+    errorMessage.value = "";
+  }
+};
+
+const removeImage = () => {
+  uploadedImage.value = null;
+  fileName.value = "";
+  formData.value.image = null;
+  if (fileInput.value) fileInput.value.value = "";
+};
+
+// 🚩 ฟังก์ชันส่งข้อมูล (แก้ไข URL)
+const handleSubmit = async () => {
+  if (!formData.value.category || !formData.value.title || !formData.value.contact) {
+    errorMessage.value = "กรุณากรอกข้อมูลให้ครบถ้วน";
+    return;
+  }
+  if (!formData.value.image) {
+    errorMessage.value = "กรุณาอัพโหลดรูปภาพประกอบ";
+    return;
+  }
+
+  errorMessage.value = "";
+  isLoading.value = true;
+
+  try {
+    const data = new FormData();
+    data.append("title", `[${formData.value.category}] ${formData.value.title}`);
+    data.append("description", formData.value.description);
+    data.append("latitude", formData.value.latitude);
+    data.append("longitude", formData.value.longitude);
+    data.append("contact", formData.value.contact);
+    data.append("image", formData.value.image);
+
+    const userStr = localStorage.getItem("user");
+    if (userStr) {
+      const user = JSON.parse(userStr);
+      if (user.id) data.append("user_id", user.id);
+    }
+
+    const token = localStorage.getItem("token");
+
+    // ✅ จัดการ URL ให้เข้ากับระบบ Proxy
+    const baseUrl = API_URL.endsWith('/') ? API_URL.slice(0, -1) : API_URL;
+    
+    await axios.post(`${baseUrl}/api/reports`, data, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "multipart/form-data",
+      },
+    });
+
+    successMessage.value = "✓ แจ้งปัญหาเรียบร้อยแล้ว!";
+    setTimeout(() => { router.push("/"); }, 1500);
+  } catch (error) {
+    console.error("Submit Error:", error);
+    errorMessage.value = error.response?.data?.message || "เกิดข้อผิดพลาดในการส่งข้อมูล";
+  } finally {
+    isLoading.value = false;
+  }
+};
+
+const handleCancel = () => {
+  if (confirm("ยกเลิกการแจ้งเรื่อง? ข้อมูลที่กรอกจะหายไป")) router.push("/");
+};
+
+const handleMenuClick = (menuId) => {
+  if (menuId === "home") router.push("/");
+  else if (menuId === "report") router.push("/reportpage");
+};
+
+const handleLogout = () => {
+  if (confirm("ยืนยันออกจากระบบ?")) {
+    localStorage.clear();
+    router.push("/login");
+  }
+};
 </script>
 
 <style scoped>
