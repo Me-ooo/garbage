@@ -5,18 +5,18 @@ const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 require('dotenv').config(); // โหลดค่า Config จากไฟล์ .env
 
-// ✅ 1. ตั้งค่า Secret Key (ใช้ Logic เดียวกับ Middleware เป๊ะๆ)
+// ✅ 1. ตั้งค่า Secret Key
 const secretKey = process.env.JWT_SECRET || 'default_secret_key_for_dev';
 
-// 🛑 Debug: ปริ้นท์ค่า Key ออกมาดูว่าตรงกับ Middleware ไหม (ลบออกได้เมื่อใช้งานจริง)
 console.log('🔑 Auth Route using Secret Key:', secretKey);
 
 // ==========================================
-// ✅ 2. Register (สมัครสมาชิก)
+// ✅ 2. Register (สมัครสมาชิก + Auto Login)
 // ==========================================
 router.post('/register', async (req, res) => { 
     try {
         const { fullname, phone, email, password } = req.body;
+        
         // เช็คว่ามีอีเมลนี้หรือยัง
         const [rows] = await db.query('SELECT * FROM users WHERE email = ?', [email]);
         if (rows.length > 0) {
@@ -26,11 +26,36 @@ router.post('/register', async (req, res) => {
         // เข้ารหัสรหัสผ่าน
         const hashedPassword = await bcrypt.hash(password, 10);
 
-        // เพิ่ม User ใหม่ (Default Role = user)
+        // เพิ่ม User ใหม่
         const sql = 'INSERT INTO users (fullname, phone, email, password, role) VALUES (?, ?, ?, ?, "user")';
-        await db.query(sql, [fullname, phone, email, hashedPassword]);
+        // 🚩 แก้ไข: รับค่า result ออกมาเพื่อเอา insertId
+        const [result] = await db.query(sql, [fullname, phone, email, hashedPassword]);
 
-        res.status(201).json({ message: 'สมัครสมาชิกสำเร็จ' });
+        // ======================================================
+        // ✅ เพิ่มส่วนนี้: สร้าง Token ทันทีหลังสมัครเสร็จ (Auto Login)
+        // ======================================================
+        const token = jwt.sign(
+            { 
+                id: result.insertId, // ไอดีที่เพิ่งสร้าง
+                email: email, 
+                role: 'user' 
+            }, 
+            secretKey, 
+            { expiresIn: '2h' }
+        );
+
+        // ส่ง Token และข้อมูล User กลับไปให้หน้าบ้านเลย
+        res.status(201).json({ 
+            message: 'สมัครสมาชิกสำเร็จ',
+            token: token,
+            user: {
+                id: result.insertId,
+                fullname: fullname,
+                email: email,
+                role: 'user',
+                image_url: '' // ส่งค่าว่างไปก่อนกัน Error หน้าบ้าน
+            }
+        });
 
     } catch (err) {
         console.error('Register Error:', err);
@@ -65,7 +90,7 @@ router.post('/login', async (req, res) => {
             { 
                 id: user.id, 
                 email: user.email, 
-                role: user.role // 👈 สำคัญ! สิทธิ์ admin ต้องอยู่ในนี้
+                role: user.role 
             }, 
             secretKey, 
             { expiresIn: '2h' }
@@ -87,7 +112,6 @@ router.post('/google-login-simple', async (req, res) => {
     try {
         const { email, name } = req.body;
 
-        // เช็คว่ามี User นี้ไหม
         const [users] = await db.query('SELECT * FROM users WHERE email = ?', [email]);
 
         if (users.length > 0) {

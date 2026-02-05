@@ -85,26 +85,25 @@
             />
 
             <div class="report-info">
-              <div class="report-header-row">
+              <h3 class="report-title">
                 <span class="status-badge" :class="getStatusClass(report.status)">
-                  {{ getStatusLabel(report.status) }}
+                  [{{ getStatusLabel(report.status) }}]
                 </span>
+                {{ report.title }}
+              </h3>
 
-                <button
-                  class="btn-view"
-                  @click="viewReportDetails(report)"
-                  title="ดูรายละเอียด"
-                >
-                  <i class="bi bi-eye-fill"></i>
-                </button>
-              </div>
-
-              <h3 class="report-title">{{ report.title }}</h3>
               <p class="report-desc">{{ report.description }}</p>
               <div class="report-author">โดย: {{ report.username || "ไม่ระบุ" }}</div>
             </div>
 
             <div class="report-meta">
+              <button
+                class="btn-view"
+                @click="viewReportDetails(report)"
+                title="ดูรายละเอียด"
+              >
+                <i class="bi bi-eye-fill"></i>
+              </button>
               <span class="time">{{ formatTime(report.created_at) }}</span>
               <span class="date">{{ formatDate(report.created_at) }}</span>
             </div>
@@ -222,7 +221,6 @@ const userImage = computed(() => {
   }
   return "/admin-profile.png";
 });
-
 
 onMounted(async () => {
   const user = JSON.parse(localStorage.getItem("user") || "{}");
@@ -526,7 +524,7 @@ const handleLogout = () => {
   border-radius: 15px;
   padding: 15px;
   display: flex;
-  align-items: center; /* จัดให้อยู่กึ่งกลางแนวตั้ง */
+  align-items: center;
   gap: 20px;
   background: #fff;
   transition: box-shadow 0.3s;
@@ -543,30 +541,36 @@ const handleLogout = () => {
   flex-shrink: 0;
 }
 .report-info {
-  flex-grow: 1; /* ขยายส่วนข้อมูลให้เต็มพื้นที่ว่าง */
+  flex-grow: 1;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 5px;
 }
-.report-header-row {
-  display: flex;
-  justify-content: flex-start;
-  align-items: center;
-  gap: 10px;
-  margin-bottom: 4px;
-}
+
+
 .report-title {
-  font-size: 1.25rem;
+  font-size: 1.5rem; /* เพิ่มขนาดฟอนต์ */
   font-weight: bold;
   color: #333;
   margin: 0;
+  line-height: 1.3;
 }
+.status-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 8px;
+  font-size: 0.9rem; /* ปรับขนาด Badge ให้พอดีกับหัวข้อ */
+  font-weight: bold;
+  vertical-align: middle;
+  margin-right: 5px;
+}
+
 .report-desc {
   font-size: 0.95rem;
   color: #666;
   margin: 0;
   display: -webkit-box;
-  -webkit-line-clamp: 1; /* ปรับให้เหลือบรรทัดเดียวถ้าชื่อคนแจ้งยาว */
+  -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
@@ -582,9 +586,11 @@ const handleLogout = () => {
   display: flex;
   flex-direction: column;
   justify-content: center;
-  min-width: 100px; /* ล็อกความกว้างส่วนวันที่ให้คงที่ */
-  border-left: 1px solid #eee; /* เพิ่มเส้นคั่นนิดหน่อย */
+  align-items: flex-end;
+  min-width: 100px;
+  border-left: 1px solid #eee;
   padding-left: 15px;
+  gap: 5px;
 }
 .report-meta .time {
   font-weight: bold;
@@ -593,13 +599,6 @@ const handleLogout = () => {
 }
 /* ------------------------ */
 
-.status-badge {
-  display: inline-block;
-  padding: 4px 12px;
-  border-radius: 12px;
-  font-size: 0.8rem;
-  font-weight: bold;
-}
 .status-pending {
   background-color: #fff3cd;
   color: #856404;
@@ -616,9 +615,9 @@ const handleLogout = () => {
   background: none;
   border: none;
   color: #2e5936;
-  font-size: 1.2rem;
+  font-size: 1.5rem;
   cursor: pointer;
-  margin-left: auto; /* ให้ปุ่มตาไปอยู่ขวาสุดของส่วน info */
+  margin-bottom: 5px;
 }
 .pagination-container {
   display: flex;
