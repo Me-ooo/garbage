@@ -1,155 +1,3 @@
-<template>
-  <div class="homepage-container">
-    <header class="header">
-      <div
-        class="user-profile"
-        @click="$router.push('/profile')"
-        style="cursor: pointer"
-        title="แก้ไขโปรไฟล์"
-      >
-        <img
-          :src="userImage"
-          alt="User Avatar"
-          @error="$event.target.src = 'https://placehold.co/40x40?text=User'"
-        />
-        <span>สวัสดีคุณ {{ userName }}</span>
-      </div>
-      <button class="logout-btn" @click="handleLogout">ออกจากระบบ</button>
-    </header>
-
-    <div class="container">
-      <aside class="sidebar">
-        <div class="banner-box">
-          <img
-            src="/admin-sidebar.png"
-            alt="Campaign Banner"
-            @error="$event.target.src = 'https://placehold.co/250x150'"
-          />
-        </div>
-
-        <div class="nav-menu">
-          <button
-            v-for="menu in menuItems"
-            :key="menu.id"
-            class="menu-btn"
-            @click="handleMenuClick(menu.id)"
-          >
-            {{ menu.label }}
-          </button>
-        </div>
-      </aside>
-
-      <main class="main-content">
-        <div class="banner-top">
-          <img
-            src="/admin-banner.png"
-            alt="Environment Banner"
-            @error="$event.target.src = 'https://placehold.co/800x150'"
-          />
-        </div>
-
-        <div class="search-bar">
-          <input
-            v-model="searchText"
-            type="text"
-            class="search-input"
-            placeholder="ค้นหาปัญหา..."
-            @input="handleFilterChange"
-          />
-          <select
-            v-model="selectedCategory"
-            class="category-select"
-            @change="handleFilterChange"
-          >
-            <option value="all">สถานะ: ทั้งหมด</option>
-            <option value="pending">⏳ รอดำเนินการ</option>
-            <option value="in_progress">🔧 กำลังแก้ไข</option>
-            <option value="resolved">✅ แก้ไขแล้ว</option>
-          </select>
-        </div>
-
-        <div v-if="loading" class="text-center mt-5">
-          <div class="loading-spinner"></div>
-          <p class="loading-text">กำลังโหลดข้อมูล...</p>
-        </div>
-
-        <div v-else class="report-list">
-          <div v-for="report in reports" :key="report.id" class="report-card">
-            <img
-              :src="getImageUrl(report.image_url)"
-              :alt="report.title"
-              class="report-img"
-              @click="viewReportDetails(report)"
-              style="cursor: pointer"
-              @error="$event.target.src = 'https://placehold.co/100x100?text=No+Image'"
-            />
-
-            <div class="report-info">
-              <h3 class="report-title">
-                <span class="status-badge" :class="getStatusClass(report.status)">
-                  [{{ getStatusLabel(report.status) }}]
-                </span>
-                {{ report.title }}
-              </h3>
-
-              <p class="report-desc">{{ report.description }}</p>
-              <div class="report-author">โดย: {{ report.username || "ไม่ระบุ" }}</div>
-            </div>
-
-            <div class="report-meta">
-              <button
-                class="btn-view"
-                @click="viewReportDetails(report)"
-                title="ดูรายละเอียด"
-              >
-                <i class="bi bi-eye-fill"></i>
-              </button>
-              <span class="time">{{ formatTime(report.created_at) }}</span>
-              <span class="date">{{ formatDate(report.created_at) }}</span>
-            </div>
-          </div>
-
-          <div v-if="reports.length === 0" class="empty-state">
-            <p>ไม่พบรายการแจ้งปัญหา</p>
-          </div>
-
-          <div class="pagination-container" v-if="totalPages > 1">
-            <button
-              class="page-btn nav-btn"
-              :disabled="currentPage === 1"
-              @click="changePage(currentPage - 1)"
-            >
-              <i class="bi bi-chevron-left"></i>
-            </button>
-
-            <template v-for="(page, index) in displayedPages" :key="index">
-              <button
-                v-if="page !== '...'"
-                class="page-btn number-btn"
-                :class="{ active: currentPage === page }"
-                @click="changePage(page)"
-              >
-                {{ page }}
-              </button>
-              <span v-else class="dots">...</span>
-            </template>
-
-            <button
-              class="page-btn nav-btn"
-              :disabled="currentPage === totalPages"
-              @click="changePage(currentPage + 1)"
-            >
-              <i class="bi bi-chevron-right"></i>
-            </button>
-          </div>
-        </div>
-
-        <button class="fab" @click="openNewReport" title="แจ้งปัญหาใหม่">+</button>
-      </main>
-    </div>
-  </div>
-</template>
-
 <script setup>
 import { ref, onMounted, computed } from "vue";
 import { useRouter } from "vue-router";
@@ -173,6 +21,13 @@ const menuItems = [
   { id: "home", label: "หน้าหลัก" },
   { id: "report", label: "แจ้งปัญหา" },
 ];
+
+// ✅ ฟังก์ชันช่วยตัดข้อความในวงเล็บ [] ออก
+const cleanTitle = (title) => {
+  if (!title) return "";
+  // Regex: ลบข้อความที่ขึ้นต้นด้วย [ ตามด้วยอะไรก็ได้ จนถึง ] แล้วตัดช่องว่างหัวท้าย
+  return title.replace(/\[.*?\]/g, "").trim();
+};
 
 const displayedPages = computed(() => {
   const total = totalPages.value;
@@ -221,6 +76,7 @@ const userImage = computed(() => {
   }
   return "/admin-profile.png";
 });
+
 
 onMounted(async () => {
   const user = JSON.parse(localStorage.getItem("user") || "{}");
@@ -271,10 +127,13 @@ const fetchReports = async (page = 1) => {
 };
 
 const viewReportDetails = (report) => {
-  const mapLink = `https://www.google.com/maps?q=${report.latitude},${report.longitude}`;
+  const mapLink = `https://www.google.com/maps/search/?api=1&query=${report.latitude},${report.longitude}`;
+  
+  // ✅ ใช้ cleanTitle ตัดวงเล็บออกก่อนแสดงใน Popup
+  const displayTitle = cleanTitle(report.title);
 
   Swal.fire({
-    title: `<h3 style="color:#333; margin-bottom:5px;">${report.title}</h3>`,
+    title: `<h3 style="color:#333; margin-bottom:5px;">${displayTitle}</h3>`,
     html: `
       <div style="text-align: left; font-size: 0.95rem; color:#555;">
         <div style="margin-bottom: 15px; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 10px rgba(0,0,0,0.1);">
@@ -362,7 +221,162 @@ const handleLogout = () => {
 };
 </script>
 
+<template>
+  <div class="homepage-container">
+    <header class="header">
+      <div
+        class="user-profile"
+        @click="$router.push('/profile')"
+        style="cursor: pointer"
+        title="แก้ไขโปรไฟล์"
+      >
+        <img
+          :src="userImage"
+          alt="User Avatar"
+          @error="$event.target.src = 'https://placehold.co/40x40?text=User'"
+        />
+        <span>สวัสดีคุณ {{ userName }}</span>
+      </div>
+      <button class="logout-btn" @click="handleLogout">ออกจากระบบ</button>
+    </header>
+
+    <div class="container">
+      <aside class="sidebar">
+        <div class="banner-box">
+          <img
+            src="/admin-sidebar.png"
+            alt="Campaign Banner"
+            @error="$event.target.src = 'https://placehold.co/250x150'"
+          />
+        </div>
+
+        <div class="nav-menu">
+          <button
+            v-for="menu in menuItems"
+            :key="menu.id"
+            class="menu-btn"
+            @click="handleMenuClick(menu.id)"
+          >
+            {{ menu.label }}
+          </button>
+        </div>
+      </aside>
+
+      <main class="main-content">
+        <div class="banner-top">
+          <img
+            src="/admin-banner.png"
+            alt="Environment Banner"
+            @error="$event.target.src = 'https://placehold.co/800x150'"
+          />
+        </div>
+
+        <div class="search-bar">
+          <input
+            v-model="searchText"
+            type="text"
+            class="search-input"
+            placeholder="ค้นหาปัญหา..."
+            @input="handleFilterChange"
+          />
+          <select
+            v-model="selectedCategory"
+            class="category-select"
+            @change="handleFilterChange"
+          >
+            <option value="all">สถานะ: ทั้งหมด</option>
+            <option value="pending">⏳ รอดำเนินการ</option>
+            <option value="in_progress">🔧 กำลังแก้ไข</option>
+            <option value="resolved">✅ แก้ไขแล้ว</option>
+          </select>
+        </div>
+
+        <div v-if="loading" class="text-center mt-5">
+          <div class="loading-spinner"></div>
+          <p class="loading-text">กำลังโหลดข้อมูล...</p>
+        </div>
+
+        <div v-else class="report-list">
+          <div v-for="report in reports" :key="report.id" class="report-card">
+            <img
+              :src="getImageUrl(report.image_url)"
+              :alt="report.title"
+              class="report-img"
+              @click="viewReportDetails(report)"
+              style="cursor: pointer"
+              @error="$event.target.src = 'https://placehold.co/100x100?text=No+Image'"
+            />
+
+            <div class="report-info">
+              <div class="report-header-row">
+                <span class="status-badge" :class="getStatusClass(report.status)">
+                  {{ getStatusLabel(report.status) }}
+                </span>
+
+                <button
+                  class="btn-view"
+                  @click="viewReportDetails(report)"
+                  title="ดูรายละเอียด"
+                >
+                  <i class="bi bi-eye-fill"></i>
+                </button>
+              </div>
+
+              <h3 class="report-title">{{ cleanTitle(report.title) }}</h3>
+              
+              <p class="report-desc">{{ report.description }}</p>
+              <div class="report-author">โดย: {{ report.username || "ไม่ระบุ" }}</div>
+            </div>
+
+            <div class="report-meta">
+              <span class="time">{{ formatTime(report.created_at) }}</span>
+              <span class="date">{{ formatDate(report.created_at) }}</span>
+            </div>
+          </div>
+
+          <div v-if="reports.length === 0" class="empty-state">
+            <p>ไม่พบรายการแจ้งปัญหา</p>
+          </div>
+
+          <div class="pagination-container" v-if="totalPages > 1">
+            <button
+              class="page-btn nav-btn"
+              :disabled="currentPage === 1"
+              @click="changePage(currentPage - 1)"
+            >
+              <i class="bi bi-chevron-left"></i>
+            </button>
+
+            <template v-for="(page, index) in displayedPages" :key="index">
+              <button
+                v-if="page !== '...'"
+                class="page-btn number-btn"
+                :class="{ active: currentPage === page }"
+                @click="changePage(page)"
+              >
+                {{ page }}
+              </button>
+              <span v-else class="dots">...</span>
+            </template>
+
+            <button
+              class="page-btn nav-btn"
+              :disabled="currentPage === totalPages"
+              @click="changePage(currentPage + 1)"
+            >
+              <i class="bi bi-chevron-right"></i>
+            </button>
+          </div>
+        </div>
+
+        <button class="fab" @click="openNewReport" title="แจ้งปัญหาใหม่">+</button>
+      </main>
+    </div>
+  </div>
+</template>
+
 <style scoped>
+/* ใช้ Style เดิมจากโค้ดที่คุณส่งมาได้เลยครับ */
 :root {
   --primary-green: #2e5936;
   --secondary-green: #5c9454;
@@ -510,7 +524,6 @@ const handleLogout = () => {
   font-family: "Kanit", sans-serif;
 }
 
-/* --- ส่วนที่ปรับปรุงใหม่ --- */
 .report-list {
   display: flex;
   flex-direction: column;
@@ -524,7 +537,7 @@ const handleLogout = () => {
   border-radius: 15px;
   padding: 15px;
   display: flex;
-  align-items: center;
+  align-items: center; /* จัดให้อยู่กึ่งกลางแนวตั้ง */
   gap: 20px;
   background: #fff;
   transition: box-shadow 0.3s;
@@ -541,36 +554,30 @@ const handleLogout = () => {
   flex-shrink: 0;
 }
 .report-info {
-  flex-grow: 1;
+  flex-grow: 1; /* ขยายส่วนข้อมูลให้เต็มพื้นที่ว่าง */
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: 4px;
 }
-
-
+.report-header-row {
+  display: flex;
+  justify-content: flex-start;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 4px;
+}
 .report-title {
-  font-size: 1.5rem; /* เพิ่มขนาดฟอนต์ */
+  font-size: 1.25rem;
   font-weight: bold;
   color: #333;
   margin: 0;
-  line-height: 1.3;
 }
-.status-badge {
-  display: inline-block;
-  padding: 2px 8px;
-  border-radius: 8px;
-  font-size: 0.9rem; /* ปรับขนาด Badge ให้พอดีกับหัวข้อ */
-  font-weight: bold;
-  vertical-align: middle;
-  margin-right: 5px;
-}
-
 .report-desc {
   font-size: 0.95rem;
   color: #666;
   margin: 0;
   display: -webkit-box;
-  -webkit-line-clamp: 2;
+  -webkit-line-clamp: 1; /* ปรับให้เหลือบรรทัดเดียวถ้าชื่อคนแจ้งยาว */
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
@@ -586,19 +593,23 @@ const handleLogout = () => {
   display: flex;
   flex-direction: column;
   justify-content: center;
-  align-items: flex-end;
-  min-width: 100px;
-  border-left: 1px solid #eee;
+  min-width: 100px; /* ล็อกความกว้างส่วนวันที่ให้คงที่ */
+  border-left: 1px solid #eee; /* เพิ่มเส้นคั่นนิดหน่อย */
   padding-left: 15px;
-  gap: 5px;
 }
 .report-meta .time {
   font-weight: bold;
   color: #555;
   font-size: 1rem;
 }
-/* ------------------------ */
 
+.status-badge {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 0.8rem;
+  font-weight: bold;
+}
 .status-pending {
   background-color: #fff3cd;
   color: #856404;
@@ -615,9 +626,9 @@ const handleLogout = () => {
   background: none;
   border: none;
   color: #2e5936;
-  font-size: 1.5rem;
+  font-size: 1.2rem;
   cursor: pointer;
-  margin-bottom: 5px;
+  margin-left: auto; /* ให้ปุ่มตาไปอยู่ขวาสุดของส่วน info */
 }
 .pagination-container {
   display: flex;
